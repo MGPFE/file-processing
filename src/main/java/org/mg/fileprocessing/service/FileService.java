@@ -1,28 +1,29 @@
 package org.mg.fileprocessing.service;
 
+import lombok.RequiredArgsConstructor;
 import org.mg.fileprocessing.dto.CreateFileDto;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.repository.FileRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class FileService {
-    private static final List<RetrieveFileDto> db = List.of(
-            new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L),
-            new RetrieveFileDto(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f"), "test2", 100L)
-    );
+    private final FileRepository fileRepository;
 
     public List<RetrieveFileDto> findAll() {
-        return db;
+        return fileRepository.findAll().stream()
+                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .toList();
     }
 
     public RetrieveFileDto findByUuid(UUID uuid) {
-        return db.stream()
-                .filter(retrieveFileDto -> retrieveFileDto.uuid().equals(uuid))
-                .findFirst()
+        return fileRepository.findFileByUuid(uuid)
+                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
     }
 
