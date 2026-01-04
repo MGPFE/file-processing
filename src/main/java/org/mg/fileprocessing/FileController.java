@@ -13,6 +13,6 @@ import java.util.List;
 public class FileController {
     @GetMapping
     public ResponseEntity<List<FileDto>> findAll() {
-
+        return ResponseEntity.ok(List.of(new FileDto("test", 200L)));
     }
 }
