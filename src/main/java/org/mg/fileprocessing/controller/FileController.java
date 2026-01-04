@@ -2,10 +2,7 @@ package org.mg.fileprocessing.controller;
 
 import org.mg.fileprocessing.dto.FileDto;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.List;
@@ -33,5 +30,11 @@ public class FileController {
     public ResponseEntity<FileDto> createFile() {
         // TODO replace the URI with actual id when saving to db
         return ResponseEntity.created(URI.create("/%s".formatted(db.get(0).uuid().toString()))).body(db.get(0));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteFile() {
+        // TODO only owner or admin should be able to delete files
+        return ResponseEntity.noContent().build();
     }
 }

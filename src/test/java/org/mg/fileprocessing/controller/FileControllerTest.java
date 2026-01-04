@@ -55,4 +55,15 @@ class FileControllerTest {
                 .andExpect(header().stringValues("Location", "/%s".formatted(fileUuid)))
                 .andExpect(content().json(expected, STRICT));
     }
+
+    @Test
+    public void shouldDeleteFile() throws Exception {
+        // Given
+        String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
+
+        // When
+        // Then
+        mockMvc.perform(delete("/files/%s".formatted(fileUuid)))
+                .andExpect(status().isNoContent());
+    }
 }
