@@ -1,17 +1,18 @@
 package org.mg.fileprocessing.controller;
 
 import org.junit.jupiter.api.Test;
-import org.mg.fileprocessing.dto.CreateFileDto;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -99,21 +100,25 @@ class FileControllerTest {
     @Test
     public void shouldCreateNewFile() throws Exception {
         // Given
-        CreateFileDto createFileDto = new CreateFileDto(
-                "test-file",
-                "test-data"
+        String filename = "test-file";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                data
         );
+
         String expected = getResourceAsString(Path.of("test-create-new-file.json"));
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
 
-        given(fileService.createFile(createFileDto)).willReturn(new RetrieveFileDto(uuid, createFileDto.filename(), (long) createFileDto.data().length()));
+        given(fileService.uploadFile(multipartFile)).willReturn(new RetrieveFileDto(uuid, filename, (long) data.length));
 
         // When
         // Then
         mockMvc.perform(
-                    post("/files")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(createFileDto))
+                    multipart("/files")
+                            .file(multipartFile)
                 ).andExpect(status().isCreated())
                 .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
                 .andExpect(content().json(expected, STRICT));

@@ -1,11 +1,11 @@
 package org.mg.fileprocessing.service;
 
 import lombok.RequiredArgsConstructor;
-import org.mg.fileprocessing.dto.CreateFileDto;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +27,8 @@ public class FileService {
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
     }
 
-    public RetrieveFileDto createFile(CreateFileDto createFileDto) {
-        return new RetrieveFileDto(UUID.randomUUID(), createFileDto.filename(), (long) createFileDto.data().length());
+    public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+        return new RetrieveFileDto(UUID.randomUUID(), multipartFile.getName(), multipartFile.getSize());
     }
 
     public void deleteFile(UUID uuid) {
