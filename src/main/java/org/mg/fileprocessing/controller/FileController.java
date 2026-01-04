@@ -1,6 +1,10 @@
 package org.mg.fileprocessing.controller;
 
-import org.mg.fileprocessing.dto.FileDto;
+import lombok.RequiredArgsConstructor;
+import org.mg.fileprocessing.dto.CreateFileDto;
+import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.service.FileService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,31 +14,31 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/files")
+@RequiredArgsConstructor
 public class FileController {
-    private static final List<FileDto> db = List.of(
-            new FileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L)
-    );
+    private final FileService fileService;
 
     @GetMapping
-    public ResponseEntity<List<FileDto>> findAll() {
-        return ResponseEntity.ok(db);
+    public ResponseEntity<List<RetrieveFileDto>> findAll() {
+        return ResponseEntity.ok(fileService.findAll());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<FileDto> findById() {
+    @GetMapping("/{uuid}")
+    public ResponseEntity<RetrieveFileDto> findById(@PathVariable("uuid") UUID uuid) {
         // TODO it should return 404 when somebody is trying to get file that is not his and is not public
-        return ResponseEntity.ok(db.get(0));
+        return ResponseEntity.ok(fileService.findByUuid(uuid));
     }
 
     @PostMapping
-    public ResponseEntity<FileDto> createFile() {
-        // TODO replace the URI with actual id when saving to db
-        return ResponseEntity.created(URI.create("/%s".formatted(db.get(0).uuid().toString()))).body(db.get(0));
+    public ResponseEntity<RetrieveFileDto> createFile(@RequestBody CreateFileDto createFileDto) {
+        RetrieveFileDto retrieveFileDto = fileService.createFile(createFileDto);
+        return ResponseEntity.created(URI.create("/%s".formatted(retrieveFileDto.uuid()))).body(retrieveFileDto);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFile() {
+    @DeleteMapping("/{uuid}")
+    public ResponseEntity<Void> deleteFile(@PathVariable("uuid") UUID uuid) {
         // TODO only owner or admin should be able to delete files
-        return ResponseEntity.noContent().build();
+        fileService.deleteFile(uuid);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

@@ -1,12 +1,22 @@
 package org.mg.fileprocessing.controller;
 
 import org.junit.jupiter.api.Test;
+import org.mg.fileprocessing.dto.CreateFileDto;
+import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.exception.ResourceNotFoundException;
+import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
 
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.json.JsonCompareMode.STRICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -16,11 +26,21 @@ import static org.mg.fileprocessing.TestUtils.*;
 class FileControllerTest {
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private FileService fileService;
 
     @Test
     public void shouldReturnListOfFiles() throws Exception {
         // Given
         String expected = getResourceAsString(Path.of("test-get-all-files.json"));
+
+        given(fileService.findAll()).willReturn(List.of(
+                new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L),
+                new RetrieveFileDto(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f"), "test2", 100L)
+        ));
 
         // When
         // Then
@@ -30,29 +50,72 @@ class FileControllerTest {
     }
 
     @Test
-    public void shouldReturnFileById() throws Exception {
+    public void shouldReturnEmptyListIfNoFiles() throws Exception {
         // Given
-        String expected = getResourceAsString(Path.of("test-get-file-by-id.json"));
-        String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
+        String expected = "[]";
+
+        given(fileService.findAll()).willReturn(List.of());
 
         // When
         // Then
-        mockMvc.perform(get("/files/%s".formatted(fileUuid)))
+        mockMvc.perform(get("/files"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
-    public void shouldCreateNewFile() throws Exception {
+    public void shouldReturnFileByUuid() throws Exception {
         // Given
-        String expected = getResourceAsString(Path.of("test-create-new-file.json"));
-        String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
+        String expected = getResourceAsString(Path.of("test-get-file-by-uuid.json"));
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+
+        given(fileService.findByUuid(uuid)).willReturn(new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L));
 
         // When
         // Then
-        mockMvc.perform(post("/files"))
-                .andExpect(status().isCreated())
-                .andExpect(header().stringValues("Location", "/%s".formatted(fileUuid)))
+        mockMvc.perform(get("/files/%s".formatted(uuid)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expected, STRICT));
+    }
+
+    @Test
+    public void shouldReturn404WhenFileNotFoundByUuid() throws Exception {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String reason = "File with UUID %s not found".formatted(uuid);
+
+        given(fileService.findByUuid(uuid)).willThrow(new ResourceNotFoundException(reason));
+
+        // When
+        // Then
+        mockMvc.perform(get("/files/%s".formatted(uuid)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.reason").value(reason))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    public void shouldCreateNewFile() throws Exception {
+        // Given
+        CreateFileDto createFileDto = new CreateFileDto(
+                "test-file",
+                "test-data"
+        );
+        String expected = getResourceAsString(Path.of("test-create-new-file.json"));
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+
+        given(fileService.createFile(createFileDto)).willReturn(new RetrieveFileDto(uuid, createFileDto.filename(), (long) createFileDto.data().length()));
+
+        // When
+        // Then
+        mockMvc.perform(
+                    post("/files")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(createFileDto))
+                ).andExpect(status().isCreated())
+                .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
                 .andExpect(content().json(expected, STRICT));
     }
 
