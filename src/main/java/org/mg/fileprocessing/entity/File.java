@@ -19,7 +19,7 @@ public class File {
     @Column(unique = true, updatable = false)
     private UUID uuid;
     private String originalFilename;
-    private String generatedFilename;
+    private String fileStorageName;
     private Long size;
     private String contentType;
     private String checksum;

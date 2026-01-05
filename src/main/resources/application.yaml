@@ -8,3 +8,12 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+checksum:
+  algorithm: "SHA-256"
+upload:
+  allowed-content-types:
+    - "image/jpg"
+    - "image/png"
+    - "image/jpeg"
+storage:
+  path: "uploads"

@@ -12,8 +12,8 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class Checksum {
-    private final ChecksumConfig checksumConfig;
+public class ChecksumUtil {
+    private final ChecksumProperties checksumProperties;
 
     private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
 
@@ -32,7 +32,7 @@ public class Checksum {
     }
 
      private MessageDigest getMessageDigest() {
-        return Optional.ofNullable(checksumConfig.getAlgorithm())
+        return Optional.ofNullable(checksumProperties.getAlgorithm())
                 .map(algo -> {
                     try {
                         return MessageDigest.getInstance(algo);

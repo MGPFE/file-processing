@@ -2,7 +2,9 @@ package org.mg.fileprocessing.controller;
 
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
+import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -122,6 +124,60 @@ class FileControllerTest {
                 ).andExpect(status().isCreated())
                 .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
                 .andExpect(content().json(expected, STRICT));
+    }
+
+    @Test
+    public void shouldReturn400WhenUnsupportedContentTypeDuringFileUpload() throws Exception {
+        // Given
+        String reason = "Unsupported content type";
+        String filename = "test-file";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                data
+        );
+
+        given(fileService.uploadFile(multipartFile)).willThrow(new UnsupportedContentTypeException(reason));
+
+        // When
+        // Then
+        mockMvc.perform(
+                        multipart("/files")
+                                .file(multipartFile)
+                ).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.reason").value(reason))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    public void shouldReturn500WhenServerEncountersIssueDuringFileUpload() throws Exception {
+        // Given
+        String reason = "Internal server error";
+        String filename = "test-file";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                data
+        );
+
+        given(fileService.uploadFile(multipartFile)).willThrow(new FileHandlingException(reason));
+
+        // When
+        // Then
+        mockMvc.perform(
+                        multipart("/files")
+                                .file(multipartFile)
+                ).andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value(500))
+                .andExpect(jsonPath("$.reason").value(reason))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
     @Test

@@ -18,8 +18,8 @@ public class DataInitializer {
             UUID file2Uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
 
             List<File> files = List.of(
-                    File.builder().uuid(file1Uuid).originalFilename("test-file.jpg").generatedFilename("%s-test-file.jpg").size(200L).contentType("image/jpg").checksum("test-checksum").build(),
-                    File.builder().uuid(file2Uuid).originalFilename("test-file-2.jpg").generatedFilename("%s-test-file-2.jpg").size(300L).contentType("image/jpg").checksum("test-checksum").build()
+                    File.builder().uuid(file1Uuid).originalFilename("test-file.jpg").fileStorageName("%s-test-file.jpg").size(200L).contentType("image/jpg").checksum("test-checksum").build(),
+                    File.builder().uuid(file2Uuid).originalFilename("test-file-2.jpg").fileStorageName("%s-test-file-2.jpg").size(300L).contentType("image/jpg").checksum("test-checksum").build()
             );
 
             fileRepository.saveAll(files);
