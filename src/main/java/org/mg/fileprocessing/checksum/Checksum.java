@@ -1,14 +1,20 @@
 package org.mg.fileprocessing.checksum;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
 @Component
-public abstract class Checksum {
+@RequiredArgsConstructor
+public class Checksum {
+    private final ChecksumConfig checksumConfig;
+
     private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
 
     public String getChecksumAsString(InputStream is) throws IOException {
@@ -25,7 +31,17 @@ public abstract class Checksum {
         return transformBytesToHex(generatedHash);
     }
 
-    abstract MessageDigest getMessageDigest();
+     private MessageDigest getMessageDigest() {
+        return Optional.ofNullable(checksumConfig.getAlgorithm())
+                .map(algo -> {
+                    try {
+                        return MessageDigest.getInstance(algo);
+                    } catch (NoSuchAlgorithmException e) {
+                        throw new RuntimeException("Algorithm %s not supported".formatted(algo), e);
+                    }
+                })
+                .orElseThrow(() -> new RuntimeException("No digest algorithm passed"));
+    }
 
     private String transformBytesToHex(byte[] bytes) {
         byte[] hexBytes = new byte[bytes.length * 2];

@@ -28,10 +28,11 @@ public class FileService {
     }
 
     public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+        // TODO handle file save etc.
         return new RetrieveFileDto(UUID.randomUUID(), multipartFile.getName(), multipartFile.getSize());
     }
 
     public void deleteFile(UUID uuid) {
-        // Pass for now
+        fileRepository.deleteFileByUuid(uuid);
     }
 }
