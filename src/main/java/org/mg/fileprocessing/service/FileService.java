@@ -40,14 +40,18 @@ public class FileService {
 
     @Transactional
     public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+        String checksum = getChecksumForFile(multipartFile);
+
+        return fileRepository.findFileByChecksum(checksum)
+                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .orElseGet(() -> saveNewFile(multipartFile, checksum));
+    }
+
+    private RetrieveFileDto saveNewFile(MultipartFile multipartFile, String checksum) {
         String contentType = multipartFile.getContentType();
-        if (!fileUploadProperties.getAllowedContentTypes().isEmpty()
-                && !fileUploadProperties.getAllowedContentTypes().contains(contentType)) {
-            throw new UnsupportedContentTypeException("Content type %s is not supported".formatted(contentType));
-        }
+        validateContentType(contentType);
 
         String originalFilename = multipartFile.getOriginalFilename();
-        String checksum = getChecksumForFile(multipartFile);
         String fileStorageName = generateFileStorageName(originalFilename, checksum);
         long size = multipartFile.getSize();
 
@@ -64,6 +68,13 @@ public class FileService {
         fileStorage.saveFileToStorage(multipartFile, fileStorageName);
 
         return new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize());
+    }
+
+    private void validateContentType(String contentType) {
+        if (!fileUploadProperties.getAllowedContentTypes().isEmpty()
+                && !fileUploadProperties.getAllowedContentTypes().contains(contentType)) {
+            throw new UnsupportedContentTypeException("Content type %s is not supported".formatted(contentType));
+        }
     }
 
     private String getChecksumForFile(MultipartFile multipartFile) {
