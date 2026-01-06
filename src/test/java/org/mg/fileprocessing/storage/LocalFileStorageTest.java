@@ -19,12 +19,11 @@ import static org.mockito.BDDMockito.given;
 class LocalFileStorageTest {
     @TempDir
     private Path dummyPath;
-    private FileStorageProperties fileStorageProperties;
     private LocalFileStorage localFileStorage;
 
     @BeforeEach
     void setUp() {
-        fileStorageProperties = new FileStorageProperties("local", dummyPath);
+        FileStorageProperties fileStorageProperties = new FileStorageProperties("local", dummyPath);
 
         localFileStorage = new LocalFileStorage(fileStorageProperties);
     }
