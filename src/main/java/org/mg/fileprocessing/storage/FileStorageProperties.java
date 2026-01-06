@@ -17,5 +17,5 @@ import java.nio.file.Path;
 @AllArgsConstructor
 public class FileStorageProperties {
     private String strategy = "local";
-    private Path path;
+    private Path path = Path.of("uploads");
 }

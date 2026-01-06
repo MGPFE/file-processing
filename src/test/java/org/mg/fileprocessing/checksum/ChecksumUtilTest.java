@@ -44,10 +44,10 @@ class ChecksumUtilTest {
 
         // When
         // Then
-        Throwable throwable = assertThatThrownBy(() -> checksumUtil.getChecksumAsString(input)).actual();
-        assertThat(throwable).isInstanceOf(RuntimeException.class);
-        assertThat(throwable.getCause()).isInstanceOf(NoSuchAlgorithmException.class);
-        assertThat(throwable.getMessage()).isEqualTo("Algorithm %s not supported".formatted(algorithm));
+        assertThatThrownBy(() -> checksumUtil.getChecksumAsString(input))
+                .isInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(NoSuchAlgorithmException.class)
+                .hasMessage("Algorithm %s not supported".formatted(algorithm));
     }
 
     @Test
@@ -58,8 +58,8 @@ class ChecksumUtilTest {
 
         // When
         // Then
-        Throwable throwable = assertThatThrownBy(() -> checksumUtil.getChecksumAsString(input)).actual();
-        assertThat(throwable).isInstanceOf(RuntimeException.class);
-        assertThat(throwable.getMessage()).isEqualTo("No digest algorithm passed");
+        assertThatThrownBy(() -> checksumUtil.getChecksumAsString(input))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("No digest algorithm passed");
     }
 }

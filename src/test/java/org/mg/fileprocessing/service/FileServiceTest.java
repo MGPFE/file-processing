@@ -79,9 +79,9 @@ class FileServiceTest {
 
         // When
         // Then
-        Throwable throwable = assertThatThrownBy(() -> fileService.findByUuid(uuid)).actual();
-        assertThat(throwable).isInstanceOf(ResourceNotFoundException.class);
-        assertThat(throwable.getMessage()).isEqualTo("File with UUID %s not found".formatted(uuid));
+        assertThatThrownBy(() -> fileService.findByUuid(uuid))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("File with UUID %s not found".formatted(uuid));
         verify(fileRepositoryMock, times(1)).findFileByUuid(uuid);
     }
 
@@ -221,9 +221,9 @@ class FileServiceTest {
 
         // When
         // Then
-        Throwable throwable = assertThatThrownBy(() -> fileService.uploadFile(multipartFile)).actual();
-        assertThat(throwable).isInstanceOf(UnsupportedContentTypeException.class);
-        assertThat(throwable.getMessage()).isEqualTo("Content type %s is not supported".formatted(contentType));
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+                .isInstanceOf(UnsupportedContentTypeException.class)
+                .hasMessage("Content type %s is not supported".formatted(contentType));
     }
 
     @Test
@@ -244,10 +244,10 @@ class FileServiceTest {
 
         // When
         // Then
-        Throwable throwable = assertThatThrownBy(() -> fileService.uploadFile(multipartFile)).actual();
-        assertThat(throwable).isInstanceOf(FileHandlingException.class);
-        assertThat(throwable.getCause()).isInstanceOf(IOException.class);
-        assertThat(throwable.getMessage()).isEqualTo("Failed while streaming from file");
-        assertThat(throwable.getCause().getMessage()).isEqualTo(ioExceptionMessage);
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+                .isInstanceOf(FileHandlingException.class)
+                .hasCauseInstanceOf(IOException.class)
+                .hasRootCauseMessage(ioExceptionMessage)
+                .hasMessage("Failed while streaming from file");
     }
 }
