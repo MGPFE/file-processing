@@ -1,36 +1,87 @@
 package org.mg.fileprocessing.service;
 
-import org.mg.fileprocessing.dto.CreateFileDto;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.mg.fileprocessing.checksum.ChecksumUtil;
+import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
+import org.mg.fileprocessing.repository.FileRepository;
+import org.mg.fileprocessing.storage.FileStorage;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class FileService {
-    private static final List<RetrieveFileDto> db = List.of(
-            new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L),
-            new RetrieveFileDto(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f"), "test2", 100L)
-    );
+    private final FileStorage fileStorage;
+    private final ChecksumUtil checksumUtil;
+    private final FileUploadProperties fileUploadProperties;
+    private final FileRepository fileRepository;
 
     public List<RetrieveFileDto> findAll() {
-        return db;
+        return fileRepository.findAll().stream()
+                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .toList();
     }
 
     public RetrieveFileDto findByUuid(UUID uuid) {
-        return db.stream()
-                .filter(retrieveFileDto -> retrieveFileDto.uuid().equals(uuid))
-                .findFirst()
+        return fileRepository.findFileByUuid(uuid)
+                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
     }
 
-    public RetrieveFileDto createFile(CreateFileDto createFileDto) {
-        return new RetrieveFileDto(UUID.randomUUID(), createFileDto.filename(), (long) createFileDto.data().length());
+    @Transactional
+    public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+        String contentType = multipartFile.getContentType();
+        if (!fileUploadProperties.getAllowedContentTypes().isEmpty()
+                && !fileUploadProperties.getAllowedContentTypes().contains(contentType)) {
+            throw new UnsupportedContentTypeException("Content type %s is not supported".formatted(contentType));
+        }
+
+        String originalFilename = multipartFile.getOriginalFilename();
+        String checksum = getChecksumForFile(multipartFile);
+        String fileStorageName = generateFileStorageName(originalFilename, checksum);
+        long size = multipartFile.getSize();
+
+        File file = File.builder()
+                .uuid(UUID.randomUUID())
+                .checksum(checksum)
+                .originalFilename(originalFilename)
+                .fileStorageName(fileStorageName)
+                .contentType(contentType)
+                .size(size)
+                .build();
+
+        fileRepository.save(file);
+        fileStorage.saveFileToStorage(multipartFile, fileStorageName);
+
+        return new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize());
+    }
+
+    private String getChecksumForFile(MultipartFile multipartFile) {
+        String checksum;
+        try (InputStream is = multipartFile.getInputStream()) {
+            checksum = checksumUtil.getChecksumAsString(is);
+        } catch (IOException e) {
+            throw new FileHandlingException("Failed while streaming from file", e);
+        }
+
+        return checksum;
+    }
+
+    private String generateFileStorageName(String originalFilename, String checksum) {
+        return "%s-%s".formatted(checksum, originalFilename);
     }
 
     public void deleteFile(UUID uuid) {
-        // Pass for now
+        fileRepository.deleteFileByUuid(uuid);
     }
 }
