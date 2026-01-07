@@ -2,6 +2,7 @@ package org.mg.fileprocessing.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
@@ -10,9 +11,12 @@ import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,11 +31,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 // TODO tests here should take into consideration that user can get files that are his own or are public and can delete only his own files
+@ExtendWith(MockitoExtension.class)
 class FileServiceTest {
+    @Captor
+    private ArgumentCaptor<File> fileArgumentCaptor;
+
     @Mock private FileRepository fileRepositoryMock;
     @Mock private ChecksumUtil checksumUtil;
     @Mock private FileStorage fileStorage;
@@ -40,10 +47,6 @@ class FileServiceTest {
     @BeforeEach
     void setUp() {
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
-
-        fileRepositoryMock = Mockito.mock(FileRepository.class);
-        checksumUtil = Mockito.mock(ChecksumUtil.class);
-        fileStorage = Mockito.mock(FileStorage.class);
 
         fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock);
     }
@@ -249,5 +252,171 @@ class FileServiceTest {
                 .hasCauseInstanceOf(IOException.class)
                 .hasRootCauseMessage(ioExceptionMessage)
                 .hasMessage("Failed while streaming from file");
+    }
+
+    @Test
+    public void shouldNotSaveNewFileIfFileWithChecksumAlreadyExists() throws IOException {
+        // Given
+        String filename = "filename.jpg";
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String dummyChecksum = "DUMMY_CHECKSUM";
+        byte[] content = "TEST".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                content
+        );
+
+        File file = new File(
+                1L,
+                uuid,
+                filename,
+                "%s-%s".formatted(dummyChecksum, filename),
+                (long) content.length,
+                "image/jpg",
+                dummyChecksum
+        );
+
+        given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
+        given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.of(file));
+
+        // When
+        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.filename()).isEqualTo(filename);
+        assertThat(result.uuid()).isEqualTo(uuid);
+        assertThat(result.size()).isEqualTo(content.length);
+        verify(fileRepositoryMock, never()).save(any(File.class));
+        verify(fileStorage, never()).saveFileToStorage(any(MultipartFile.class), anyString());
+    }
+
+    @Test
+    public void shouldSaveNewFileWhenFileWithChecksumDoesntExist() throws IOException {
+        // Given
+        String filename = "filename.jpg";
+        String dummyChecksum = "DUMMY_CHECKSUM";
+        byte[] content = "TEST".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                "image/jpg",
+                content
+        );
+
+        given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
+        given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+
+        // When
+        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.filename()).isEqualTo(filename);
+        assertThat(result.uuid()).isNotNull();
+        assertThat(result.size()).isEqualTo(content.length);
+        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
+        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, "%s-%s".formatted(dummyChecksum, filename));
+
+        File capturedFile = fileArgumentCaptor.getValue();
+
+        assertThat(capturedFile.getUuid()).isNotNull();
+        assertThat(capturedFile.getOriginalFilename()).isEqualTo(filename);
+        assertThat(capturedFile.getChecksum()).isEqualTo(dummyChecksum);
+        assertThat(capturedFile.getSize()).isEqualTo(content.length);
+        assertThat(capturedFile.getFileStorageName()).isEqualTo("%s-%s".formatted(dummyChecksum, filename));
+    }
+
+    @Test
+    public void shouldNotSaveFileWithZeroBytes() {
+        // Given
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                "zero-bytes.txt",
+                "text/plain",
+                new byte[0]
+        );
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+                .isInstanceOf(FileHandlingException.class)
+                .hasMessage("Cannot upload file smaller than 1 byte");
+        verify(fileRepositoryMock, never()).findFileByChecksum(anyString());
+        verify(fileRepositoryMock, never()).save(any(File.class));
+        verify(fileStorage, never()).saveFileToStorage(any(MultipartFile.class), anyString());
+    }
+
+    @Test
+    public void shouldUseChecksumAsFileStorageNameWhenOriginalFilenameIsBlank() throws IOException {
+        // Given
+        String filename = "";
+        String dummyChecksum = "DUMMY_CHECKSUM";
+        byte[] content = "TEST".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                "text/plain",
+                content
+        );
+
+        given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
+        given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+
+        // When
+        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.filename()).isEqualTo(filename);
+        assertThat(result.uuid()).isNotNull();
+        assertThat(result.size()).isEqualTo(content.length);
+        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
+        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, dummyChecksum);
+
+
+        File capturedFile = fileArgumentCaptor.getValue();
+
+        assertThat(capturedFile.getUuid()).isNotNull();
+        assertThat(capturedFile.getOriginalFilename()).isEqualTo(filename);
+        assertThat(capturedFile.getChecksum()).isEqualTo(dummyChecksum);
+        assertThat(capturedFile.getSize()).isEqualTo(content.length);
+        assertThat(capturedFile.getFileStorageName()).isEqualTo(dummyChecksum);
+    }
+
+    @Test
+    public void shouldUseChecksumAsFileStorageNameWhenOriginalFilenameIsNull() throws IOException {
+        // Given
+        String filename = null;
+        String dummyChecksum = "DUMMY_CHECKSUM";
+        byte[] content = "TEST".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                "text/plain",
+                content
+        );
+
+        given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
+        given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+
+        // When
+        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.filename()).isEqualTo("");
+        assertThat(result.uuid()).isNotNull();
+        assertThat(result.size()).isEqualTo(content.length);
+        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
+        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, dummyChecksum);
+
+        File capturedFile = fileArgumentCaptor.getValue();
+
+        assertThat(capturedFile.getUuid()).isNotNull();
+        assertThat(capturedFile.getOriginalFilename()).isEqualTo("");
+        assertThat(capturedFile.getChecksum()).isEqualTo(dummyChecksum);
+        assertThat(capturedFile.getSize()).isEqualTo(content.length);
+        assertThat(capturedFile.getFileStorageName()).isEqualTo(dummyChecksum);
     }
 }

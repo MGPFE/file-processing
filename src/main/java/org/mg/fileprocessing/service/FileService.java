@@ -40,10 +40,11 @@ public class FileService {
 
     @Transactional
     public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+        validateFileLength(multipartFile);
         String checksum = getChecksumForFile(multipartFile);
 
         return fileRepository.findFileByChecksum(checksum)
-                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .map(RetrieveFileDto::fromFile)
                 .orElseGet(() -> saveNewFile(multipartFile, checksum));
     }
 
@@ -67,7 +68,7 @@ public class FileService {
         fileRepository.save(file);
         fileStorage.saveFileToStorage(multipartFile, fileStorageName);
 
-        return new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize());
+        return RetrieveFileDto.fromFile(file);
     }
 
     private void validateContentType(String contentType) {
@@ -89,7 +90,16 @@ public class FileService {
     }
 
     private String generateFileStorageName(String originalFilename, String checksum) {
-        return "%s-%s".formatted(checksum, originalFilename);
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return checksum;
+        } else {
+            return "%s-%s".formatted(checksum, originalFilename);
+        }
+    }
+
+    private void validateFileLength(MultipartFile multipartFile) {
+        if (multipartFile.getSize() < 1L)
+            throw new FileHandlingException("Cannot upload file smaller than 1 byte");
     }
 
     public void deleteFile(UUID uuid) {
