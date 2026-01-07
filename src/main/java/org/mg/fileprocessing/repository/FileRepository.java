@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface FileRepository extends JpaRepository<File, Long> {
     Optional<File> findFileByUuid(UUID uuid);
     void deleteFileByUuid(UUID uuid);
+    Optional<File> findFileByChecksum(String checksum);
 }
