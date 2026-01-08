@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.stream.Stream;
@@ -20,12 +21,13 @@ import java.util.stream.Stream;
 public class LocalFileStorageCleaner implements FileStorageCleaner {
     private final FileRepository fileRepository;
     private final FileStorageProperties fileStorageProperties;
+    private final Clock clock;
 
     @Override
     @Scheduled(cron = "0 * * * * *")
     public void cleanOrphanedFiles() {
         log.info("Cleaning up orphaned files...");
-        Instant hourAgo = Instant.now().minus(Duration.ofDays(1));
+        Instant hourAgo = Instant.now(clock).minus(Duration.ofDays(1));
 
         try (Stream<Path> diskFiles = Files.list(fileStorageProperties.getPath())) {
             diskFiles
