@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:devdb
+    url: jdbc:h2:${DB_HOST}:${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     properties:
       hibernate:

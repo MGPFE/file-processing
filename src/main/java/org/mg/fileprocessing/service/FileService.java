@@ -2,6 +2,7 @@ package org.mg.fileprocessing.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
 import org.mg.fileprocessing.entity.File;
 import org.mg.fileprocessing.exception.FileHandlingException;
@@ -10,6 +11,7 @@ import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +20,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileService {
@@ -25,6 +28,7 @@ public class FileService {
     private final ChecksumUtil checksumUtil;
     private final FileUploadProperties fileUploadProperties;
     private final FileRepository fileRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public List<RetrieveFileDto> findAll() {
         return fileRepository.findAll().stream()
@@ -67,6 +71,15 @@ public class FileService {
 
         fileRepository.save(file);
         fileStorage.saveFileToStorage(multipartFile, fileStorageName);
+
+        kafkaTemplate.send("file.upload.scan", fileStorageName)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("KAFKA ERROR: Message failed to send!", ex);
+                    } else {
+                        log.info("KAFKA SUCCESS: Message sent to partition {}", result.getRecordMetadata().partition());
+                    }
+                });
 
         return RetrieveFileDto.fromFile(file);
     }
