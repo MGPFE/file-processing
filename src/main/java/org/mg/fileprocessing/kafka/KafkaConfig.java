@@ -13,6 +13,7 @@ import org.springframework.kafka.core.*;
 import java.util.HashMap;
 import java.util.Map;
 
+// TODO This is bad, we should use yaml file for this but I couldn't get it to work with contextLoads test so for now it's like this :(
 @Configuration
 public class KafkaConfig {
     @Value(value = "${spring.kafka.bootstrap-servers}")
