@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +42,7 @@ class FileServiceTest {
     private ArgumentCaptor<File> fileArgumentCaptor;
 
     @Mock private FileRepository fileRepositoryMock;
+    @Mock private KafkaTemplate<String, String> kafkaTemplate;
     @Mock private ChecksumUtil checksumUtil;
     @Mock private FileStorage fileStorage;
     private FileService fileService;
@@ -48,7 +51,7 @@ class FileServiceTest {
     void setUp() {
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
 
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
     }
 
     @Test
@@ -163,6 +166,8 @@ class FileServiceTest {
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(checksum);
         willDoNothing().given(fileStorage).saveFileToStorage(multipartFile, fileStorageName);
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         RetrieveFileDto result = fileService.uploadFile(multipartFile);
@@ -180,7 +185,7 @@ class FileServiceTest {
     public void shouldSaveFileWhenAllowedContentTypesSpecified() throws IOException {
         // Given
         FileUploadProperties fileUploadProperties = new FileUploadProperties(List.of("image/jpg"));
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
         String filename = "filename.jpg";
         String checksum = "05D84936CE1050C2B19D0618D342EA7403B96A46FBB73F86623AF1BD63384652";
         String fileStorageName = "%s-%s".formatted(checksum, filename);
@@ -193,6 +198,8 @@ class FileServiceTest {
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(checksum);
         willDoNothing().given(fileStorage).saveFileToStorage(multipartFile, fileStorageName);
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         RetrieveFileDto result = fileService.uploadFile(multipartFile);
@@ -207,10 +214,10 @@ class FileServiceTest {
     }
 
     @Test
-    public void shouldThrowExceptionWhenContentTypeNotAllowed() throws IOException {
+    public void shouldThrowExceptionWhenContentTypeNotAllowed() {
         // Given
         FileUploadProperties fileUploadProperties = new FileUploadProperties(List.of("image/jpg"));
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
 
         String filename = "filename.jpg";
         String contentType = "image/png";
@@ -306,6 +313,8 @@ class FileServiceTest {
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
         given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         RetrieveFileDto result = fileService.uploadFile(multipartFile);
@@ -362,6 +371,8 @@ class FileServiceTest {
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
         given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         RetrieveFileDto result = fileService.uploadFile(multipartFile);
@@ -399,6 +410,8 @@ class FileServiceTest {
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
         given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.empty());
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         RetrieveFileDto result = fileService.uploadFile(multipartFile);
