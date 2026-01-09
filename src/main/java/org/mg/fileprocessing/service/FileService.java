@@ -115,6 +115,7 @@ public class FileService {
             throw new FileHandlingException("Cannot upload file smaller than 1 byte");
     }
 
+    @Transactional
     public void deleteFile(UUID uuid) {
         fileRepository.deleteFileByUuid(uuid);
     }
