@@ -21,3 +21,9 @@ upload:
     - "image/jpeg"
 storage:
   path: "uploads"
+compression:
+  path: "compressed"
+scan:
+  api-key: ${SCAN_API_KEY}
+  big-scan-threshold: 32768
+  big-scan-suffix: /upload_url

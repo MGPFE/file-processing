@@ -2,30 +2,39 @@ package org.mg.fileprocessing.storage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mg.fileprocessing.exception.FileHandlingException;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
+@ExtendWith(MockitoExtension.class)
 class LocalFileStorageTest {
     @TempDir
     private Path dummyPath;
     private LocalFileStorage localFileStorage;
+    @Mock private KafkaTemplate<String, String> kafkaTemplate;
 
     @BeforeEach
     void setUp() {
         FileStorageProperties fileStorageProperties = new FileStorageProperties("local", dummyPath);
 
-        localFileStorage = new LocalFileStorage(fileStorageProperties);
+        localFileStorage = new LocalFileStorage(fileStorageProperties, kafkaTemplate);
     }
 
     @Test
@@ -39,6 +48,9 @@ class LocalFileStorageTest {
                 "image/jpg",
                 content.getBytes(StandardCharsets.UTF_8)
         );
+
+        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
+                CompletableFuture.completedFuture(null));
 
         // When
         localFileStorage.saveFileToStorage(multipartFile, filename);
