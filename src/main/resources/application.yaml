@@ -24,6 +24,7 @@ storage:
 compression:
   path: "compressed"
 scan:
+  url: https://www.virustotal.com/api/v3/files
   api-key: ${SCAN_API_KEY}
   big-scan-threshold: 32768
   big-scan-suffix: /upload_url

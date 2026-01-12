@@ -9,6 +9,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.FixedBackOff;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -58,6 +61,13 @@ public class KafkaConfig {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 StringDeserializer.class);
         return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public DefaultErrorHandler errorHandler() {
+        DefaultErrorHandler handler = new DefaultErrorHandler(new FixedBackOff(0L, 0L));
+
+        return handler;
     }
 
     @Bean
