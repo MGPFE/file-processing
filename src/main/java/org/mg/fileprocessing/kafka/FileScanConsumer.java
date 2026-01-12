@@ -18,6 +18,6 @@ public class FileScanConsumer {
     @KafkaListener(topics = "file.upload.scan", groupId = "test-group-id")
     public void consumeFileScan(String stringPath) {
         log.info("Consumed path: {}", stringPath);
-        zipCompressor.compress(List.of(Paths.get(stringPath)));
+        zipCompressor.compress(Paths.get(stringPath));
     }
 }
