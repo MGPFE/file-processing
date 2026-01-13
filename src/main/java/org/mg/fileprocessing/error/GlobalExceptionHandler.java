@@ -1,6 +1,7 @@
 package org.mg.fileprocessing.error;
 
 import org.mg.fileprocessing.exception.FileHandlingException;
+import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     public ResponseEntity<ErrorResponse> handleFileHandlingException(FileHandlingException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                INTERNAL_SERVER_ERROR.value(),
+                ex.getMessage(),
+                Instant.now()
+        );
+
+        return new ResponseEntity<>(errorResponse, INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResponse> handleHttpClientException(HttpClientException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
                 INTERNAL_SERVER_ERROR.value(),
                 ex.getMessage(),
