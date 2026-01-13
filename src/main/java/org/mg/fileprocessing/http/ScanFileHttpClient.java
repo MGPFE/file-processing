@@ -25,7 +25,7 @@ public class ScanFileHttpClient {
     private static final String X_API_KEY_HEADER = "x-apikey";
     private static final String FILE_PART = "file";
 
-    public void postFile(Path path) {
+    public ResponseEntity<String> postFile(Path path) {
         String url;
         try {
             url = buildUrl(Files.size(path));
@@ -49,13 +49,16 @@ public class ScanFileHttpClient {
                 })
                 .toEntity(String.class);
 
+        // TODO return actual scan result instead of scan trigger result
+
         log.info("Received response with code: {} from {}", responseEntity.getStatusCode(), url);
         log.info("Response: {}", responseEntity.getBody());
+        return responseEntity;
     }
 
     private String buildUrl(long fileSize) {
         return "%s%s".formatted(
-                scanFileHttpClientProperties.getUrl(),
+                scanFileHttpClientProperties.getScanUrl(),
                 fileSize >= scanFileHttpClientProperties.getBigScanThreshold()
                         ? scanFileHttpClientProperties.getBigScanSuffix()
                         : ""

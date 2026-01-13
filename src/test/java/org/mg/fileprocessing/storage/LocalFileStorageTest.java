@@ -19,7 +19,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
@@ -34,7 +33,7 @@ class LocalFileStorageTest {
     void setUp() {
         FileStorageProperties fileStorageProperties = new FileStorageProperties("local", dummyPath);
 
-        localFileStorage = new LocalFileStorage(fileStorageProperties, kafkaTemplate);
+        localFileStorage = new LocalFileStorage(fileStorageProperties);
     }
 
     @Test
@@ -48,9 +47,6 @@ class LocalFileStorageTest {
                 "image/jpg",
                 content.getBytes(StandardCharsets.UTF_8)
         );
-
-        given(kafkaTemplate.send(anyString(), anyString())).willReturn(
-                CompletableFuture.completedFuture(null));
 
         // When
         localFileStorage.saveFileToStorage(multipartFile, filename);
