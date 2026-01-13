@@ -18,4 +18,9 @@ public class ScanFileHttpClientConfig {
                 .requestFactory(factory)
                 .build();
     }
+
+    @Bean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
+    }
 }
