@@ -11,4 +11,5 @@ public interface FileRepository extends JpaRepository<File, Long> {
     void deleteFileByUuid(UUID uuid);
     Optional<File> findFileByChecksum(String checksum);
     boolean existsByFileStorageName(String fileStorageName);
+    Optional<File> findByFileStorageName(String fileStorageName);
 }

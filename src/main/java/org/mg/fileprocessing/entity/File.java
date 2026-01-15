@@ -29,4 +29,6 @@ public class File {
     private Long size;
     private String contentType;
     private String checksum;
+    @Enumerated(EnumType.STRING)
+    private ScanStatus scanStatus;
 }

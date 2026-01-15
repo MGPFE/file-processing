@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Setter
 @ConfigurationProperties(prefix = "scan")
 public class ScanFileHttpClientProperties {
-    private String url;
+    private String scanUrl;
     private String apiKey;
     private Long bigScanThreshold;
     private String bigScanSuffix;

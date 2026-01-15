@@ -5,18 +5,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
 import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.entity.ScanStatus;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
+import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -27,6 +32,7 @@ public class FileService {
     private final ChecksumUtil checksumUtil;
     private final FileUploadProperties fileUploadProperties;
     private final FileRepository fileRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public List<RetrieveFileDto> findAll() {
         return fileRepository.findAll().stream()
@@ -65,10 +71,13 @@ public class FileService {
                 .fileStorageName(fileStorageName)
                 .contentType(contentType)
                 .size(size)
+                .scanStatus(ScanStatus.NOT_STARTED)
                 .build();
 
         fileRepository.save(file);
-        fileStorage.saveFileToStorage(multipartFile, fileStorageName);
+        Path path = fileStorage.saveFileToStorage(multipartFile, fileStorageName);
+
+        requestScan(path);
 
         return RetrieveFileDto.fromFile(file);
     }
@@ -104,8 +113,27 @@ public class FileService {
             throw new FileHandlingException("Cannot upload file smaller than 1 byte");
     }
 
+    private void requestScan(Path path) {
+        kafkaTemplate.send("file.upload.scan", path.toString())
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("KAFKA ERROR: Message failed to send!", ex);
+                    } else {
+                        log.info("KAFKA SUCCESS: Message sent to partition {}", result.getRecordMetadata().partition());
+                    }
+                });
+    }
+
     @Transactional
     public void deleteFile(UUID uuid) {
         fileRepository.deleteFileByUuid(uuid);
+    }
+
+    @Transactional
+    public void handleFileStatusUpdate(Path fileStorageName, ScanStatus scanStatus) {
+        File dbFile = fileRepository.findByFileStorageName(fileStorageName.getFileName().toString())
+                .orElseThrow(() -> new FileHandlingException("File %s not found in storage".formatted(fileStorageName)));
+
+        dbFile.setScanStatus(scanStatus);
     }
 }

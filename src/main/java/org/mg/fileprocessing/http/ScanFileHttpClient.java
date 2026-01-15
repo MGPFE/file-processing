@@ -25,7 +25,7 @@ public class ScanFileHttpClient {
     private static final String X_API_KEY_HEADER = "x-apikey";
     private static final String FILE_PART = "file";
 
-    public void postFile(Path path) {
+    public ResponseEntity<String> postFile(Path path) {
         String url;
         try {
             url = buildUrl(Files.size(path));
@@ -36,29 +36,49 @@ public class ScanFileHttpClient {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add(FILE_PART, new FileSystemResource(path));
 
-        ResponseEntity<String> responseEntity = restClient.post()
-                .uri(url)
-                .header(X_API_KEY_HEADER, scanFileHttpClientProperties.getApiKey())
+        ResponseEntity<String> responseEntity = executeRequest(getBaseRequest(HttpMethod.POST, url)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .accept(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {
-                    log.error("Url {} returned error {} - {}", url, response.getStatusCode(), response.getStatusText());
-                    throw new HttpClientException("Failed when connecting to scan endpoint: %s - %s - %s".formatted(url, response.getStatusCode(), response.getStatusText()));
-                })
-                .toEntity(String.class);
+                .body(body));
 
-        log.info("Received response with code: {} from {}", responseEntity.getStatusCode(), url);
-        log.info("Response: {}", responseEntity.getBody());
+        if (log.isDebugEnabled()) {
+            logResponse(responseEntity, url);
+        }
+        return responseEntity;
+    }
+
+    public ResponseEntity<String> getAnalysis(String analysisUrl) {
+        ResponseEntity<String> responseEntity = executeRequest(getBaseRequest(HttpMethod.GET, analysisUrl));
+        logResponse(responseEntity, analysisUrl);
+        return responseEntity;
     }
 
     private String buildUrl(long fileSize) {
         return "%s%s".formatted(
-                scanFileHttpClientProperties.getUrl(),
+                scanFileHttpClientProperties.getScanUrl(),
                 fileSize >= scanFileHttpClientProperties.getBigScanThreshold()
                         ? scanFileHttpClientProperties.getBigScanSuffix()
                         : ""
         );
+    }
+
+    private RestClient.RequestBodySpec getBaseRequest(HttpMethod method, String url) {
+        return restClient.method(method)
+                .uri(url)
+                .header(X_API_KEY_HEADER, scanFileHttpClientProperties.getApiKey())
+                .accept(MediaType.APPLICATION_JSON);
+    }
+
+    private ResponseEntity<String> executeRequest(RestClient.RequestBodySpec request) {
+        return request.retrieve()
+                .onStatus(HttpStatusCode::isError, (rq, rs) -> {
+                    log.error("Url {} returned error {} - {}", rq.getURI(), rs.getStatusCode(), rs.getStatusText());
+                    throw new HttpClientException("Failed when connecting to scan endpoint: %s - %s - %s".formatted(rq.getURI(), rs.getStatusCode(), rs.getStatusText()));
+                })
+                .toEntity(String.class);
+    }
+
+    private void logResponse(ResponseEntity<String> responseEntity, String url) {
+        log.debug("Received response with code: {} from {}", responseEntity.getStatusCode(), url);
+        log.debug("Response: {}", responseEntity.getBody());
     }
 }

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,10 +17,9 @@ import java.nio.file.*;
 @ConditionalOnProperty(matchIfMissing = true, name = "storage.strategy", havingValue = "local")
 public class LocalFileStorage implements FileStorage {
     private final FileStorageProperties fileStorageProperties;
-    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Override
-    public void saveFileToStorage(MultipartFile multipartFile, String filename) {
+    public Path saveFileToStorage(MultipartFile multipartFile, String filename) {
         Path destinationPath = fileStorageProperties.getPath()
                 .resolve(Paths.get(filename))
                 .normalize()
@@ -39,17 +37,6 @@ public class LocalFileStorage implements FileStorage {
             throw new FileHandlingException("Failed to store a file", e);
         }
 
-        requestScan(destinationPath);
-    }
-
-    private void requestScan(Path path) {
-        kafkaTemplate.send("file.upload.scan", path.toString())
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("KAFKA ERROR: Message failed to send!", ex);
-                    } else {
-                        log.info("KAFKA SUCCESS: Message sent to partition {}", result.getRecordMetadata().partition());
-                    }
-                });
+        return destinationPath;
     }
 }
