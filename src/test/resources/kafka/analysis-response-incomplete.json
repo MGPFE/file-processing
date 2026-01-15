@@ -1,0 +1,17 @@
+{
+  "data": {
+    "attributes": {
+      "status": "incomplete",
+      "stats": {
+        "harmless": 0,
+        "malicious": 0,
+        "suspicious": 0,
+        "undetected": 0,
+        "timeout": 0,
+        "confirmed-timeout": 0,
+        "failure": 0,
+        "type-unsupported": 0
+      }
+    }
+  }
+}
