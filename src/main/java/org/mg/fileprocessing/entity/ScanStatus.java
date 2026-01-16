@@ -5,5 +5,6 @@ public enum ScanStatus {
     IN_PROGRESS,
     SUCCESS,
     FAILURE_RETRIABLE,
-    FAILURE_UNSAFE;
+    FAILURE_UNSAFE,
+    RETRYING;
 }

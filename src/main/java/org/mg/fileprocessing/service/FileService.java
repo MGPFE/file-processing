@@ -4,15 +4,17 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
+import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
 import org.mg.fileprocessing.entity.ScanStatus;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
-import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -44,6 +45,10 @@ public class FileService {
         return fileRepository.findFileByUuid(uuid)
                 .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
+    }
+
+    public Page<File> findByFilesStatus(ScanStatus scanStatus, Pageable pageable) {
+        return fileRepository.findFilesByScanStatus(scanStatus, pageable);
     }
 
     @Transactional
@@ -113,7 +118,7 @@ public class FileService {
             throw new FileHandlingException("Cannot upload file smaller than 1 byte");
     }
 
-    private void requestScan(Path path) {
+    public void requestScan(Path path) {
         kafkaTemplate.send("file.upload.scan", path.toString())
                 .whenComplete((result, ex) -> {
                     if (ex != null) {

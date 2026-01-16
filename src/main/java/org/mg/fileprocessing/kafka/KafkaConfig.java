@@ -11,9 +11,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
-import org.springframework.web.client.HttpClientErrorException;
 
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -65,9 +63,7 @@ public class KafkaConfig {
 
     @Bean
     public DefaultErrorHandler errorHandler() {
-        DefaultErrorHandler handler = new DefaultErrorHandler(new FixedBackOff(0L, 0L));
-
-        return handler;
+        return new DefaultErrorHandler(new FixedBackOff(0L, 0L));
     }
 
     @Bean
