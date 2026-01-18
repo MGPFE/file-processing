@@ -6,4 +6,6 @@ import java.nio.file.Path;
 
 public interface FileStorage {
     Path saveFileToStorage(MultipartFile multipartFile, String filename);
+    Path getFilePathFromStorage(String filename);
+    void deleteFileFromStorage(String filename);
 }

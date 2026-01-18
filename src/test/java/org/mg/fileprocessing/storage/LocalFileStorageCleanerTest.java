@@ -18,9 +18,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +38,7 @@ class LocalFileStorageCleanerTest {
     }
 
     @Test
-    public void shouldCleanOrphanedFiles() throws IOException {
+    public void shouldCleanStorage() throws IOException {
         // Given
         String oldOrphanFilename = "old-orphan.txt";
         String regularFileFilename = "regular-file.txt";
@@ -53,7 +51,7 @@ class LocalFileStorageCleanerTest {
         given(fileRepository.existsByFileStorageName(oldOrphanFilename)).willReturn(false);
 
         // When
-        localFileStorageCleaner.cleanOrphanedFiles();
+        localFileStorageCleaner.cleanStorage();
 
         // Then
         assertAll(
@@ -72,7 +70,7 @@ class LocalFileStorageCleanerTest {
         given(fileRepository.existsByFileStorageName(regularFileFilename)).willReturn(true);
 
         // When
-        localFileStorageCleaner.cleanOrphanedFiles();
+        localFileStorageCleaner.cleanStorage();
 
         // Then
         assertTrue(Files.exists(regularOldFile));

@@ -20,10 +20,7 @@ public class LocalFileStorage implements FileStorage {
 
     @Override
     public Path saveFileToStorage(MultipartFile multipartFile, String filename) {
-        Path destinationPath = fileStorageProperties.getPath()
-                .resolve(Paths.get(filename))
-                .normalize()
-                .toAbsolutePath();
+        Path destinationPath = resolvePath(filename);
 
         if (!destinationPath.getParent().equals(fileStorageProperties.getPath().toAbsolutePath())) {
             throw new FileHandlingException("Cannot store file outside current directory");
@@ -38,5 +35,28 @@ public class LocalFileStorage implements FileStorage {
         }
 
         return destinationPath;
+    }
+
+    @Override
+    public Path getFilePathFromStorage(String filename) {
+        return resolvePath(filename);
+    }
+
+    private Path resolvePath(String filename) {
+        return fileStorageProperties.getPath()
+                .resolve(Path.of(filename))
+                .normalize()
+                .toAbsolutePath();
+    }
+
+    @Override
+    public void deleteFileFromStorage(String filename) {
+        Path destinationPath = resolvePath(filename);
+
+        try {
+            Files.delete(destinationPath);
+        } catch (IOException e) {
+            log.error("Failed while deleting file {}", destinationPath);
+        }
     }
 }

@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
@@ -76,7 +78,7 @@ class FileServiceTest {
         assertThat(result.uuid()).isEqualTo(uuid);
         assertThat(result.filename()).isEqualTo(file.getOriginalFilename());
         assertThat(result.size()).isEqualTo(file.getSize());
-        verify(fileRepositoryMock, times(1)).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuid(uuid);
     }
 
     @Test
@@ -90,7 +92,7 @@ class FileServiceTest {
         assertThatThrownBy(() -> fileService.findByUuid(uuid))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("File with UUID %s not found".formatted(uuid));
-        verify(fileRepositoryMock, times(1)).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuid(uuid);
     }
 
     @Test
@@ -122,7 +124,7 @@ class FileServiceTest {
         assertThat(result).isNotEmpty();
         assertThat(result).hasSize(2);
         assertThat(result).containsAll(List.of(retrieveFileDto, retrieveFileDto2));
-        verify(fileRepositoryMock, times(1)).findAll();
+        verify(fileRepositoryMock).findAll();
     }
 
     @Test
@@ -136,21 +138,41 @@ class FileServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result).isEmpty();
-        verify(fileRepositoryMock, times(1)).findAll();
+        verify(fileRepositoryMock).findAll();
     }
 
     @Test
     public void shouldDeleteFileByUuid() {
         // Given
         UUID uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
+        String filename = "test";
 
-        willDoNothing().given(fileRepositoryMock).deleteFileByUuid(uuid);
+        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.of(File.builder().uuid(uuid).fileStorageName(filename).build()));
 
         // When
         fileService.deleteFile(uuid);
 
         // Then
-        verify(fileRepositoryMock, times(1)).deleteFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock).deleteFileByUuid(uuid);
+        verify(fileStorage).deleteFileFromStorage(filename);
+    }
+
+    @Test
+    public void shouldDoNothingWhenDeleteFileByUuidNoFile() {
+        // Given
+        UUID uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
+        String filename = "test";
+
+        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.empty());
+
+        // When
+        fileService.deleteFile(uuid);
+
+        // Then
+        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock, never()).deleteFileByUuid(uuid);
+        verify(fileStorage, never()).deleteFileFromStorage(filename);
     }
 
     @Test
@@ -178,9 +200,9 @@ class FileServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.filename()).isEqualTo(filename);
         assertThat(result.size()).isEqualTo(5);
-        verify(fileRepositoryMock, times(1)).save(any(File.class));
-        verify(checksumUtil, times(1)).getChecksumAsString(any(InputStream.class));
-        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, fileStorageName);
+        verify(fileRepositoryMock).save(any(File.class));
+        verify(checksumUtil).getChecksumAsString(any(InputStream.class));
+        verify(fileStorage).saveFileToStorage(multipartFile, fileStorageName);
     }
 
     @Test
@@ -210,9 +232,9 @@ class FileServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.filename()).isEqualTo(filename);
         assertThat(result.size()).isEqualTo(5);
-        verify(fileRepositoryMock, times(1)).save(any(File.class));
-        verify(checksumUtil, times(1)).getChecksumAsString(any(InputStream.class));
-        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, fileStorageName);
+        verify(fileRepositoryMock).save(any(File.class));
+        verify(checksumUtil).getChecksumAsString(any(InputStream.class));
+        verify(fileStorage).saveFileToStorage(multipartFile, fileStorageName);
     }
 
     @Test
@@ -328,8 +350,8 @@ class FileServiceTest {
         assertThat(result.filename()).isEqualTo(filename);
         assertThat(result.uuid()).isNotNull();
         assertThat(result.size()).isEqualTo(content.length);
-        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
-        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, "%s-%s".formatted(dummyChecksum, filename));
+        verify(fileRepositoryMock).save(fileArgumentCaptor.capture());
+        verify(fileStorage).saveFileToStorage(multipartFile, "%s-%s".formatted(dummyChecksum, filename));
 
         File capturedFile = fileArgumentCaptor.getValue();
 
@@ -387,8 +409,8 @@ class FileServiceTest {
         assertThat(result.filename()).isEqualTo(filename);
         assertThat(result.uuid()).isNotNull();
         assertThat(result.size()).isEqualTo(content.length);
-        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
-        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, dummyChecksum);
+        verify(fileRepositoryMock).save(fileArgumentCaptor.capture());
+        verify(fileStorage).saveFileToStorage(multipartFile, dummyChecksum);
 
 
         File capturedFile = fileArgumentCaptor.getValue();
@@ -427,8 +449,8 @@ class FileServiceTest {
         assertThat(result.filename()).isEqualTo("");
         assertThat(result.uuid()).isNotNull();
         assertThat(result.size()).isEqualTo(content.length);
-        verify(fileRepositoryMock, times(1)).save(fileArgumentCaptor.capture());
-        verify(fileStorage, times(1)).saveFileToStorage(multipartFile, dummyChecksum);
+        verify(fileRepositoryMock).save(fileArgumentCaptor.capture());
+        verify(fileStorage).saveFileToStorage(multipartFile, dummyChecksum);
 
         File capturedFile = fileArgumentCaptor.getValue();
 
@@ -437,5 +459,86 @@ class FileServiceTest {
         assertThat(capturedFile.getChecksum()).isEqualTo(dummyChecksum);
         assertThat(capturedFile.getSize()).isEqualTo(content.length);
         assertThat(capturedFile.getFileStorageName()).isEqualTo(dummyChecksum);
+    }
+
+    @Test
+    public void deleteFileWithFilenameShouldDelegateToDeleteFileWithUuid() {
+        // Given
+        String filename = "test";
+        UUID uuid = UUID.randomUUID();
+
+        given(fileRepositoryMock.findByFileStorageName(filename)).willReturn(Optional.of(File.builder().uuid(uuid).fileStorageName(filename).build()));
+
+        // When
+        fileService.deleteFile(filename);
+
+        // Then
+        verify(fileRepositoryMock).findByFileStorageName(filename);
+        verify(fileRepositoryMock).deleteFileByUuid(uuid);
+        verify(fileStorage).deleteFileFromStorage(filename);
+    }
+
+    @Test
+    public void deleteFileWithFilenameShouldDoNothingWhenFileNotPresent() {
+        // Given
+        String filename = "test";
+        UUID uuid = UUID.randomUUID();
+
+        given(fileRepositoryMock.findByFileStorageName(filename)).willReturn(Optional.empty());
+
+        // When
+        fileService.deleteFile(filename);
+
+        // Then
+        verify(fileRepositoryMock).findByFileStorageName(filename);
+        verify(fileRepositoryMock, never()).deleteFileByUuid(uuid);
+        verify(fileStorage, never()).deleteFileFromStorage(filename);
+    }
+
+    @Test
+    public void shouldHandleFileStatusUpdate() {
+        // Given
+        Path path = Path.of("/test/path.jpg");
+        ScanStatus scanStatus = ScanStatus.IN_PROGRESS;
+        File file = File.builder()
+                .scanStatus(ScanStatus.NOT_STARTED)
+                .build();
+
+        given(fileRepositoryMock.findByFileStorageName(path.getFileName().toString())).willReturn(Optional.of(file));
+
+        // When
+        fileService.handleFileStatusUpdate(path, scanStatus);
+
+        // Then
+        verify(fileRepositoryMock).findByFileStorageName(path.getFileName().toString());
+        assertThat(file.getScanStatus()).isEqualTo(scanStatus);
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenFileForStatusUpdateDoesntExist() {
+        // Given
+        Path path = Path.of("/test/path.jpg");
+        ScanStatus scanStatus = ScanStatus.IN_PROGRESS;
+
+        given(fileRepositoryMock.findByFileStorageName(path.getFileName().toString())).willReturn(Optional.empty());
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.handleFileStatusUpdate(path, scanStatus))
+                .isInstanceOf(FileHandlingException.class)
+                .hasMessage("File " + path + " not found in storage");
+    }
+
+    @Test
+    public void shouldFindFilesByStatus() {
+        // Given
+        ScanStatus scanStatus = ScanStatus.IN_PROGRESS;
+        PageRequest pageRequest = PageRequest.of(0, 10);
+
+        // When
+        fileService.findByFilesStatus(scanStatus, pageRequest);
+
+        // Then
+        verify(fileRepositoryMock).findFilesByScanStatus(scanStatus, pageRequest);
     }
 }
