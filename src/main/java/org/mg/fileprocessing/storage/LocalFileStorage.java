@@ -48,4 +48,15 @@ public class LocalFileStorage implements FileStorage {
                 .normalize()
                 .toAbsolutePath();
     }
+
+    @Override
+    public void deleteFileFromStorage(String filename) {
+        Path destinationPath = resolvePath(filename);
+
+        try {
+            Files.delete(destinationPath);
+        } catch (IOException e) {
+            log.error("Failed while deleting file {}", destinationPath);
+        }
+    }
 }

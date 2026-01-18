@@ -59,7 +59,7 @@ class FileScanConsumerTest {
     }
 
     @Test
-    public void shouldMarkFileAsUnsafeWhenScanApiDetectsSomething() {
+    public void shouldDeleteUnsafeFileWhenScanApiDetectsSomething() {
         // Given
         String stringPath = "test-file.txt";
         Path path = Path.of(stringPath);
@@ -74,7 +74,7 @@ class FileScanConsumerTest {
 
         // Then
         verify(fileService, times(1)).handleFileStatusUpdate(path, ScanStatus.IN_PROGRESS);
-        verify(fileService, times(1)).handleFileStatusUpdate(path, ScanStatus.FAILURE_UNSAFE);
+        verify(fileService, times(1)).deleteFile(stringPath);
         verify(zipCompressor, times(1)).compress(path);
     }
 

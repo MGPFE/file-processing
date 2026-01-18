@@ -102,8 +102,8 @@ public class FileScanConsumer {
 
     private void processAnalysisResult(Path path, ScanAnalysisResponse scanAnalysisResponse) {
         if (!isSafe(scanAnalysisResponse.scanAnalysisStats())) {
-            fileService.handleFileStatusUpdate(path, ScanStatus.FAILURE_UNSAFE);
-            log.warn("Detected unsafe file, will be deleted by cleaner {}", path);
+            log.warn("Detected unsafe file, deleting {}", path);
+            fileService.deleteFile(path.getFileName().toString());
         } else {
             fileService.handleFileStatusUpdate(path, ScanStatus.SUCCESS);
             log.info("File scan successful {}", path);

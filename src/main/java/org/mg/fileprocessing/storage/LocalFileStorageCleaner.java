@@ -25,7 +25,7 @@ public class LocalFileStorageCleaner implements FileStorageCleaner {
 
     @Override
     @Scheduled(cron = "0 * * * * *")
-    public void cleanOrphanedFiles() {
+    public void cleanStorage() {
         log.info("Cleaning up orphaned files...");
         Instant hourAgo = Instant.now(clock).minus(Duration.ofDays(1));
 

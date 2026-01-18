@@ -13,7 +13,6 @@ import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -129,9 +128,20 @@ public class FileService {
                 });
     }
 
+    public void deleteFile(String filename) {
+        fileRepository.findByFileStorageName(filename)
+                .ifPresent(this::deleteFile);
+    }
+
     @Transactional
     public void deleteFile(UUID uuid) {
-        fileRepository.deleteFileByUuid(uuid);
+        fileRepository.findFileByUuid(uuid)
+                .ifPresent(this::deleteFile);
+    }
+
+    private void deleteFile(File file) {
+        fileRepository.deleteFileByUuid(file.getUuid());
+        fileStorage.deleteFileFromStorage(file.getFileStorageName());
     }
 
     @Transactional
