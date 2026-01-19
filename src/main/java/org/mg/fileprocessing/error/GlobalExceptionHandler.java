@@ -57,4 +57,15 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(errorResponse, INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResponse> handleException(Exception ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                INTERNAL_SERVER_ERROR.value(),
+                "Server encountered an error",
+                Instant.now()
+        );
+
+        return new ResponseEntity<>(errorResponse, INTERNAL_SERVER_ERROR);
+    }
 }
