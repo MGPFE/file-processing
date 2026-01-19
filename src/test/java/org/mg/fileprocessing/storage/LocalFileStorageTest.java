@@ -5,29 +5,28 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mg.fileprocessing.exception.FileHandlingException;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class LocalFileStorageTest {
     @TempDir
     private Path dummyPath;
     private LocalFileStorage localFileStorage;
-    @Mock private KafkaTemplate<String, String> kafkaTemplate;
 
     @BeforeEach
     void setUp() {
@@ -89,5 +88,42 @@ class LocalFileStorageTest {
                 .isInstanceOf(FileHandlingException.class)
                 .hasCauseInstanceOf(IOException.class)
                 .hasMessage("Failed to store a file");
+    }
+
+    @Test
+    public void shouldResolveFilePathFromStorage() {
+        // Given
+        String filename = "test-file.txt";
+
+        // When
+        Path result = localFileStorage.getFilePathFromStorage(filename);
+
+        // Then
+        assertThat(result.getFileName().toString()).isEqualTo(filename);
+        assertThat(result.getParent()).isEqualTo(dummyPath);
+    }
+
+    @Test
+    public void shouldDeleteFileFromStorage() throws IOException {
+        // Given
+        String filename = "test.txt";
+
+        Files.writeString(dummyPath.resolve(filename), "test data");
+
+        // When
+        localFileStorage.deleteFileFromStorage(filename);
+
+        // Then
+        assertFalse(dummyPath.resolve(filename).toFile().exists());
+    }
+
+    @Test
+    public void shouldDoNothingWhenDeletingFilesFail() {
+        // Given
+        String filename = "test.txt";
+
+        // When
+        // Then
+        assertDoesNotThrow(() -> localFileStorage.deleteFileFromStorage(filename));
     }
 }

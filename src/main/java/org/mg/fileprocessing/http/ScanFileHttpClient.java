@@ -48,7 +48,9 @@ public class ScanFileHttpClient {
 
     public ResponseEntity<String> getAnalysis(String analysisUrl) {
         ResponseEntity<String> responseEntity = executeRequest(getBaseRequest(HttpMethod.GET, analysisUrl));
-        logResponse(responseEntity, analysisUrl);
+        if (log.isDebugEnabled()) {
+            logResponse(responseEntity, analysisUrl);
+        }
         return responseEntity;
     }
 
@@ -72,7 +74,7 @@ public class ScanFileHttpClient {
         return request.retrieve()
                 .onStatus(HttpStatusCode::isError, (rq, rs) -> {
                     log.error("Url {} returned error {} - {}", rq.getURI(), rs.getStatusCode(), rs.getStatusText());
-                    throw new HttpClientException("Failed when connecting to scan endpoint: %s - %s - %s".formatted(rq.getURI(), rs.getStatusCode(), rs.getStatusText()));
+                    throw new HttpClientException("Failed when connecting to endpoint: %s - %s - %s".formatted(rq.getURI(), rs.getStatusCode(), rs.getStatusText()));
                 })
                 .toEntity(String.class);
     }
