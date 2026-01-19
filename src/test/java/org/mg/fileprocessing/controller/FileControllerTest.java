@@ -42,8 +42,10 @@ class FileControllerTest {
         String expected = getResourceAsString(Path.of("test-get-all-files.json"));
 
         given(fileService.findAll()).willReturn(List.of(
-                new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L),
-                new RetrieveFileDto(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f"), "test2", 100L)
+                RetrieveFileDto.builder()
+                        .uuid(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5")).filename("test2").size(100L).build(),
+                RetrieveFileDto.builder()
+                        .uuid(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f")).filename("test2").size(100L).build()
         ));
 
         // When
@@ -73,7 +75,8 @@ class FileControllerTest {
         String expected = getResourceAsString(Path.of("test-get-file-by-uuid.json"));
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
 
-        given(fileService.findByUuid(uuid)).willReturn(new RetrieveFileDto(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5"), "test", 200L));
+        given(fileService.findByUuid(uuid)).willReturn(RetrieveFileDto.builder()
+                .uuid(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5")).filename("test").size(200L).build());
 
         // When
         // Then
@@ -115,7 +118,8 @@ class FileControllerTest {
         String expected = getResourceAsString(Path.of("test-create-new-file.json"));
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
 
-        given(fileService.uploadFile(multipartFile)).willReturn(new RetrieveFileDto(uuid, filename, (long) data.length));
+        given(fileService.uploadFile(multipartFile)).willReturn(RetrieveFileDto.builder()
+                .uuid(uuid).filename(filename).size((long) data.length).build());
 
         // When
         // Then

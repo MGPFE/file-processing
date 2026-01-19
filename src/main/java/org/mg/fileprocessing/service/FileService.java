@@ -36,13 +36,13 @@ public class FileService {
 
     public List<RetrieveFileDto> findAll() {
         return fileRepository.findAll().stream()
-                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .map(RetrieveFileDto::fromFile)
                 .toList();
     }
 
     public RetrieveFileDto findByUuid(UUID uuid) {
         return fileRepository.findFileByUuid(uuid)
-                .map(file -> new RetrieveFileDto(file.getUuid(), file.getOriginalFilename(), file.getSize()))
+                .map(RetrieveFileDto::fromFile)
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
     }
 
@@ -128,6 +128,7 @@ public class FileService {
                 });
     }
 
+    @Transactional
     public void deleteFile(String filename) {
         fileRepository.findByFileStorageName(filename)
                 .ifPresent(this::deleteFile);
