@@ -126,7 +126,44 @@ class ScanFileHttpClientTest {
         // Then
         assertThatThrownBy(() -> scanFileHttpClient.postFile(file))
                 .isInstanceOf(HttpClientException.class)
-                .hasMessage("Failed when connecting to scan endpoint: %s - %s - %s".formatted(url, "504 GATEWAY_TIMEOUT", "Gateway Timeout"));
+                .hasMessage("Failed when connecting to endpoint: %s - %s - %s".formatted(url, "504 GATEWAY_TIMEOUT", "Gateway Timeout"));
+        mockRestServiceServer.verify();
+    }
+
+    @Test
+    public void shouldGetAnalysis() {
+        // Given
+        String url = "https://analysis.url";
+
+        mockRestServiceServer.expect(requestTo(url))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("x-apikey", "ABCDEF"))
+                .andExpect(header("accept", MediaType.APPLICATION_JSON_VALUE))
+                .andRespond(withSuccess("{\"status\":\"ok\"}", MediaType.APPLICATION_JSON));
+
+        // When
+        scanFileHttpClient.getAnalysis(url);
+
+        // Then
+        mockRestServiceServer.verify();
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenRequestToAnalysisUrlFails() {
+        // Given
+        String url = "https://analysis.url";
+
+        mockRestServiceServer.expect(requestTo(url))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("x-apikey", "ABCDEF"))
+                .andExpect(header("accept", MediaType.APPLICATION_JSON_VALUE))
+                .andRespond(withGatewayTimeout());
+
+        // When
+        // Then
+        assertThatThrownBy(() -> scanFileHttpClient.getAnalysis(url))
+                .isInstanceOf(HttpClientException.class)
+                .hasMessage("Failed when connecting to endpoint: %s - %s - %s".formatted(url, "504 GATEWAY_TIMEOUT", "Gateway Timeout"));
         mockRestServiceServer.verify();
     }
 }
