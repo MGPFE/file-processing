@@ -104,7 +104,11 @@ class FileServiceTest {
                 .uuid(uuid)
                 .size(100L)
                 .build();
-        RetrieveFileDto retrieveFileDto = new RetrieveFileDto(uuid, file.getOriginalFilename(), file.getSize());
+        RetrieveFileDto retrieveFileDto = RetrieveFileDto.builder()
+                .uuid(uuid)
+                .filename(file.getOriginalFilename())
+                .size(file.getSize())
+                .build();
 
         UUID uuid2 = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
         File file2 = File.builder()
@@ -112,7 +116,11 @@ class FileServiceTest {
                 .uuid(uuid2)
                 .size(200L)
                 .build();
-        RetrieveFileDto retrieveFileDto2 = new RetrieveFileDto(uuid2, file2.getOriginalFilename(), file2.getSize());
+        RetrieveFileDto retrieveFileDto2 = RetrieveFileDto.builder()
+                .uuid(uuid2)
+                .filename(file2.getOriginalFilename())
+                .size(file2.getSize())
+                .build();
 
         given(fileRepositoryMock.findAll()).willReturn(List.of(file, file2));
 
