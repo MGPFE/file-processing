@@ -213,7 +213,7 @@ class FileControllerTest {
     }
 
     @Test
-    public void shouldDeleteFile() throws Exception {
+    public void shouldReturn204WhenDeletingContent() throws Exception {
         // Given
         String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
 
@@ -221,5 +221,32 @@ class FileControllerTest {
         // Then
         mockMvc.perform(delete("/files/%s".formatted(fileUuid)))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void shouldReturn500WhenUnknownException() throws Exception {
+        // Given
+        String reason = "Server encountered an unexpected exception";
+        String filename = "test-file";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file",
+                filename,
+                MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                data
+        );
+
+        given(fileService.uploadFile(multipartFile)).willThrow(new RuntimeException());
+
+        // When
+        // Then
+        mockMvc.perform(
+                        multipart("/files")
+                                .file(multipartFile)
+                ).andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value(500))
+                .andExpect(jsonPath("$.reason").value(reason))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 }
