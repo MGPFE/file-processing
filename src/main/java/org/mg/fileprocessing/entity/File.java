@@ -31,4 +31,6 @@ public class File {
     private String checksum;
     @Enumerated(EnumType.STRING)
     private ScanStatus scanStatus;
+    @ManyToOne
+    private User user;
 }
