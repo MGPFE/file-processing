@@ -13,6 +13,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users")
@@ -23,6 +24,7 @@ public class User implements UserDetails {
     private Long id;
     @Column(unique = true, nullable = false)
     private String email;
+    @Column(nullable = false)
     private String password;
     private List<UserRole> roles;
     @OneToMany(mappedBy = "user")

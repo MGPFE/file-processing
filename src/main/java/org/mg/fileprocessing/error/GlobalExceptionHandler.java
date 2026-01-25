@@ -1,5 +1,6 @@
 package org.mg.fileprocessing.error;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
@@ -7,16 +8,25 @@ import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.Errors;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.validation.beanvalidation.SpringValidatorAdapter;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.time.Clock;
 import java.time.Instant;
 
 import static org.springframework.http.HttpStatus.*;
 
 @Slf4j
 @ControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+    private final Clock clock;
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
         return createResponse(NOT_FOUND, ex.getMessage());
@@ -32,6 +42,17 @@ public class GlobalExceptionHandler {
         return createResponse(INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationError(MethodArgumentNotValidException ex) {
+        StringBuilder message = new StringBuilder();
+
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            message.append("%s - %s,".formatted(error.getField(), error.getDefaultMessage()));
+        }
+
+        return createResponse(BAD_REQUEST, message.substring(0, message.length() - 1));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception ex) {
         log.error("Encountered safety net exception: ", ex);
@@ -43,7 +64,7 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 status.value(),
                 message,
-                Instant.now()
+                Instant.now(clock)
         );
 
         return new ResponseEntity<>(errorResponse, status);

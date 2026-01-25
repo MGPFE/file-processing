@@ -1,0 +1,5 @@
+{
+  "code": 400,
+  "reason": "email - must be a well-formed email address",
+  "timestamp": "2026-05-20T12:00:00Z"
+}

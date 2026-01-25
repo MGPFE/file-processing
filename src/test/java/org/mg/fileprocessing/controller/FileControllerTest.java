@@ -6,17 +6,22 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
+import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,11 +35,18 @@ import static org.mg.fileprocessing.TestUtils.*;
 class FileControllerTest {
     @Autowired
     private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private FileService fileService;
+    @MockitoBean private FileService fileService;
+    @MockitoBean private JwtUtil jwtUtil;
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public Clock clock() {
+            final Instant fixedNow = Instant.parse("2026-05-20T12:00:00Z");
+            return Clock.fixed(fixedNow, ZoneId.of("UTC"));
+        }
+    }
 
     @Test
     public void shouldReturnListOfFiles() throws Exception {
