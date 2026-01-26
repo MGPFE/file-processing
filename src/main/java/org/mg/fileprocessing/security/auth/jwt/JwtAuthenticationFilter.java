@@ -33,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .ifPresent(token -> doAuthenticate(token, request));
         } catch (Exception e) {
             log.error("Failed to authenticate user", e);
-            throw new AuthenticationServiceException("Failed to authenticate user");
+            throw new AuthenticationServiceException("Failed to authenticate user", e);
         }
         filterChain.doFilter(request, response);
     }
