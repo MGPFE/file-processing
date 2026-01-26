@@ -6,14 +6,18 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
+import org.mg.fileprocessing.security.auth.SecurityConfig;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,12 +36,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mg.fileprocessing.TestUtils.*;
 
 @WebMvcTest(FileController.class)
+@Import(SecurityConfig.class)
 class FileControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean private FileService fileService;
     @MockitoBean private JwtUtil jwtUtil;
+    @MockitoBean private UserDetailsService userDetailsService;
 
     @TestConfiguration
     static class TestConfig {
@@ -49,6 +55,25 @@ class FileControllerTest {
     }
 
     @Test
+    public void shouldReturn403WhenGetWithoutUser() throws Exception {
+        // Given
+        // When
+        // Then
+        mockMvc.perform(get("/files"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void shouldReturn403WhenPostWithoutUser() throws Exception {
+        // Given
+        // When
+        // Then
+        mockMvc.perform(post("/files"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
     public void shouldReturnListOfFiles() throws Exception {
         // Given
         String expected = getResourceAsString(Path.of("test-get-all-files.json"));
@@ -68,6 +93,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturnEmptyListIfNoFiles() throws Exception {
         // Given
         String expected = "[]";
@@ -82,6 +108,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturnFileByUuid() throws Exception {
         // Given
         String expected = getResourceAsString(Path.of("test-get-file-by-uuid.json"));
@@ -98,6 +125,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn404WhenFileNotFoundByUuid() throws Exception {
         // Given
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
@@ -116,6 +144,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldCreateNewFile() throws Exception {
         // Given
         String filename = "test-file";
@@ -144,6 +173,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn400WhenUnsupportedContentTypeDuringFileUpload() throws Exception {
         // Given
         String reason = "Unsupported content type";
@@ -171,6 +201,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn500WhenServerEncountersIssueDuringFileUpload() throws Exception {
         // Given
         String reason = "Internal server error";
@@ -198,6 +229,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn500WhenHttpClientException() throws Exception {
         // Given
         String reason = "Internal server error";
@@ -225,6 +257,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn204WhenDeletingContent() throws Exception {
         // Given
         String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
@@ -236,6 +269,7 @@ class FileControllerTest {
     }
 
     @Test
+    @WithMockUser
     public void shouldReturn500WhenUnknownException() throws Exception {
         // Given
         String reason = "Server encountered an unexpected exception";
