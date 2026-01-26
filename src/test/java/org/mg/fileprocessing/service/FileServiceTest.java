@@ -17,6 +17,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -305,16 +306,16 @@ class FileServiceTest {
                 content
         );
 
-        File file = new File(
-                1L,
-                uuid,
-                filename,
-                "%s-%s".formatted(dummyChecksum, filename),
-                (long) content.length,
-                "image/jpg",
-                dummyChecksum,
-                ScanStatus.NOT_STARTED
-        );
+        File file = File.builder()
+                .id(1L)
+                .uuid(uuid)
+                .originalFilename(filename)
+                .fileStorageName("%s-%s".formatted(dummyChecksum, filename))
+                .size((long) content.length)
+                .contentType(MediaType.IMAGE_JPEG_VALUE)
+                .checksum(dummyChecksum)
+                .scanStatus(ScanStatus.NOT_STARTED)
+                .build();
 
         given(checksumUtil.getChecksumAsString(any(InputStream.class))).willReturn(dummyChecksum);
         given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.of(file));

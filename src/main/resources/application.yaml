@@ -28,3 +28,6 @@ scan:
   api-key: ${SCAN_API_KEY}
   big-scan-threshold: 32768
   big-scan-suffix: /upload_url
+jwt:
+  secret: VERY_SECRET_JWT_TOKEN_DO_NOT_SHARE
+  expiration: 1h
