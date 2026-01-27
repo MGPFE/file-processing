@@ -157,4 +157,14 @@ public class FileService {
 
         dbFile.setScanStatus(scanStatus);
     }
+
+    @Transactional
+    public RetrieveFileDto updateFileVisibility(UUID fileId, Long userId, FileVisibility fileVisibility) {
+        File dbFile = fileRepository.findFileByUuidAndUserId(fileId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("File with id %s not found".formatted(fileId)));
+
+        dbFile.setFileVisibility(fileVisibility);
+
+        return RetrieveFileDto.fromFile(dbFile);
+    }
 }

@@ -4,13 +4,15 @@
     "filename": "test2",
     "size": 100,
     "checksum": null,
-    "contentType": null
+    "contentType": null,
+    "fileVisibility": null
   },
   {
     "uuid": "36a3a593-bc83-49b7-b7cc-e916a0e0ba9f",
     "filename": "test2",
     "size": 100,
     "checksum": null,
-    "contentType": null
+    "contentType": null,
+    "fileVisibility": null
   }
 ]

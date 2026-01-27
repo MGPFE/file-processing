@@ -1,8 +1,10 @@
 package org.mg.fileprocessing.controller;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.dto.UpdateFileVisibilityDto;
 import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.http.HttpStatus;
@@ -42,5 +44,12 @@ public class FileController {
     public ResponseEntity<Void> deleteFile(@PathVariable("uuid") UUID uuid, @AuthenticationPrincipal User user) {
         fileService.deleteFile(uuid, user.getId());
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PatchMapping("/{uuid}")
+    public ResponseEntity<RetrieveFileDto> updateFileVisibility(@PathVariable("uuid") UUID uuid,
+                                                                @AuthenticationPrincipal User user,
+                                                                @Valid @RequestBody UpdateFileVisibilityDto updateFileVisibilityDto) {
+        return ResponseEntity.ok(fileService.updateFileVisibility(uuid, user.getId(), updateFileVisibilityDto.fileVisibility()));
     }
 }

@@ -3,6 +3,8 @@ package org.mg.fileprocessing.controller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.dto.UpdateFileVisibilityDto;
+import org.mg.fileprocessing.entity.FileVisibility;
 import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
@@ -22,6 +24,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -309,5 +313,44 @@ class FileControllerTest {
                 .andExpect(jsonPath("$.reason").value(reason))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    public void shouldReturn200WhenUpdatingFileVisibility() throws Exception {
+        // Given
+        String expected = getResourceAsString(Path.of("update-file-visibility.json"));
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        UpdateFileVisibilityDto updateFileVisibilityDto = new UpdateFileVisibilityDto(FileVisibility.PUBLIC);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        given(fileService.updateFileVisibility(eq(uuid), eq(testUser.getId()), eq(updateFileVisibilityDto.fileVisibility()))).willReturn(RetrieveFileDto.builder()
+                .uuid(uuid).filename("test").fileVisibility(updateFileVisibilityDto.fileVisibility()).size(200L).build());
+
+        // When
+        // Then
+        mockMvc.perform(patch("/files/%s".formatted(uuid))
+                        .content(objectMapper.writeValueAsString(updateFileVisibilityDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(user(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expected, STRICT));
+    }
+
+    @Test
+    public void shouldReturn400WhenInvalidUpdateFileVisibilityDtoPassed() throws Exception {
+        // Given
+        String expected = getResourceAsString(Path.of("update-file-visibility-invalid.json"));
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        UpdateFileVisibilityDto updateFileVisibilityDto = new UpdateFileVisibilityDto(null);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        // When
+        // Then
+        mockMvc.perform(patch("/files/%s".formatted(uuid))
+                        .content(objectMapper.writeValueAsString(updateFileVisibilityDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(user(testUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().json(expected, STRICT));
     }
 }

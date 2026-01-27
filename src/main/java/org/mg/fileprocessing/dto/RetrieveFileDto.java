@@ -2,6 +2,7 @@ package org.mg.fileprocessing.dto;
 
 import lombok.Builder;
 import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.entity.FileVisibility;
 
 import java.util.UUID;
 
@@ -11,7 +12,8 @@ public record RetrieveFileDto(
         String filename,
         Long size,
         String checksum,
-        String contentType
+        String contentType,
+        FileVisibility fileVisibility
 ) {
     public static RetrieveFileDto fromFile(File file) {
         return RetrieveFileDto.builder()
@@ -20,6 +22,7 @@ public record RetrieveFileDto(
                 .size(file.getSize())
                 .checksum(file.getChecksum())
                 .contentType(file.getContentType())
+                .fileVisibility(file.getFileVisibility())
                 .build();
     }
 }
