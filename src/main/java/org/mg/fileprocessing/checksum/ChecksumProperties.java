@@ -14,5 +14,5 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 @Configuration
 public class ChecksumProperties {
-    private String algorithm;
+    private String algorithm = "SHA-256";
 }

@@ -12,22 +12,13 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
-checksum:
-  algorithm: "SHA-256"
 upload:
   allowed-content-types:
     - "image/jpg"
     - "image/png"
     - "image/jpeg"
-storage:
-  path: "uploads"
-compression:
-  path: "compressed"
 scan:
   scan-url: https://www.virustotal.com/api/v3/files
   api-key: ${SCAN_API_KEY}
-  big-scan-threshold: 32768
-  big-scan-suffix: /upload_url
 jwt:
   secret: VERY_SECRET_JWT_TOKEN_DO_NOT_SHARE
-  expiration: 1h

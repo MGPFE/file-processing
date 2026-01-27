@@ -31,6 +31,8 @@ public class File {
     private String checksum;
     @Enumerated(EnumType.STRING)
     private ScanStatus scanStatus;
+    @Enumerated(EnumType.STRING)
+    private FileVisibility fileVisibility;
     @ManyToOne
     private User user;
 }

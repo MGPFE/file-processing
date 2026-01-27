@@ -17,5 +17,5 @@ import java.time.Duration;
 @AllArgsConstructor
 public class JwtProperties {
     private String secret;
-    private Duration expiration;
+    private Duration expiration = Duration.ofHours(1L);
 }
