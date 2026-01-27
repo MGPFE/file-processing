@@ -1,0 +1,5 @@
+{
+  "code": 400,
+  "reason": "fileVisibility - must not be null",
+  "timestamp": "2026-05-20T12:00:00Z"
+}

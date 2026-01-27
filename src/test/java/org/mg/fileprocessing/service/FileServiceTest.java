@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -561,5 +562,41 @@ class FileServiceTest {
 
         // Then
         verify(fileRepositoryMock).findFilesByScanStatus(scanStatus, pageRequest);
+    }
+
+    @Test
+    public void shouldUpdateFileVisibility() {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        File file = File.builder()
+                .id(1L)
+                .uuid(uuid)
+                .fileVisibility(FileVisibility.PRIVATE)
+                .user(user)
+                .build();
+
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.of(file));
+
+        // When
+        RetrieveFileDto retrieveFileDto = fileService.updateFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC);
+
+        // Then
+        assertNotNull(retrieveFileDto);
+        assertThat(retrieveFileDto.fileVisibility()).isEqualTo(FileVisibility.PUBLIC);
+        verify(fileRepositoryMock).findFileByUuidAndUserId(uuid, user.getId());
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenUpdatingFileVisibilityAndFileDoesntExist() {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.empty());
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.updateFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("File with id %s not found".formatted(uuid));
     }
 }

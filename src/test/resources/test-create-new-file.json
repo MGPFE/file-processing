@@ -3,5 +3,6 @@
   "filename": "test-file",
   "size": 9,
   "checksum": null,
-  "contentType": null
+  "contentType": null,
+  "fileVisibility": null
 }
