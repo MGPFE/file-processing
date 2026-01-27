@@ -16,5 +16,5 @@ import java.nio.file.Path;
 @Getter
 @Setter
 public class CompressorProperties {
-    private Path path;
+    private Path path = Path.of("compressed");
 }

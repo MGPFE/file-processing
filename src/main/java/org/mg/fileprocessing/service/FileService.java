@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.entity.FileVisibility;
 import org.mg.fileprocessing.entity.ScanStatus;
+import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
@@ -34,14 +36,14 @@ public class FileService {
     private final FileRepository fileRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public List<RetrieveFileDto> findAll() {
-        return fileRepository.findAll().stream()
+    public List<RetrieveFileDto> findAll(Long userId) {
+        return fileRepository.findFilesByUserIdOrFileVisibility(userId, FileVisibility.PUBLIC).stream()
                 .map(RetrieveFileDto::fromFile)
                 .toList();
     }
 
-    public RetrieveFileDto findByUuid(UUID uuid) {
-        return fileRepository.findFileByUuid(uuid)
+    public RetrieveFileDto findByUuid(UUID uuid, Long userId) {
+        return fileRepository.findFileByUuidAndUserId(uuid, userId)
                 .map(RetrieveFileDto::fromFile)
                 .orElseThrow(() -> new ResourceNotFoundException("File with UUID %s not found".formatted(uuid)));
     }
@@ -51,16 +53,16 @@ public class FileService {
     }
 
     @Transactional
-    public RetrieveFileDto uploadFile(MultipartFile multipartFile) {
+    public RetrieveFileDto uploadFile(MultipartFile multipartFile, User user) {
         validateFileLength(multipartFile);
         String checksum = getChecksumForFile(multipartFile);
 
         return fileRepository.findFileByChecksum(checksum)
                 .map(RetrieveFileDto::fromFile)
-                .orElseGet(() -> saveNewFile(multipartFile, checksum));
+                .orElseGet(() -> saveNewFile(multipartFile, checksum, user));
     }
 
-    private RetrieveFileDto saveNewFile(MultipartFile multipartFile, String checksum) {
+    private RetrieveFileDto saveNewFile(MultipartFile multipartFile, String checksum, User user) {
         String contentType = multipartFile.getContentType();
         validateContentType(contentType);
 
@@ -76,6 +78,8 @@ public class FileService {
                 .contentType(contentType)
                 .size(size)
                 .scanStatus(ScanStatus.NOT_STARTED)
+                .user(user)
+                .fileVisibility(FileVisibility.PRIVATE)
                 .build();
 
         fileRepository.save(file);
@@ -129,14 +133,15 @@ public class FileService {
     }
 
     @Transactional
+    // This method is not exposed to user
     public void deleteFile(String filename) {
         fileRepository.findByFileStorageName(filename)
                 .ifPresent(this::deleteFile);
     }
 
     @Transactional
-    public void deleteFile(UUID uuid) {
-        fileRepository.findFileByUuid(uuid)
+    public void deleteFile(UUID uuid, Long userId) {
+        fileRepository.findFileByUuidAndUserId(uuid, userId)
                 .ifPresent(this::deleteFile);
     }
 

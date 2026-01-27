@@ -16,6 +16,6 @@ import org.springframework.stereotype.Component;
 public class ScanFileHttpClientProperties {
     private String scanUrl;
     private String apiKey;
-    private Long bigScanThreshold;
-    private String bigScanSuffix;
+    private Long bigScanThreshold = 32768L;
+    private String bigScanSuffix = "/upload_url";
 }

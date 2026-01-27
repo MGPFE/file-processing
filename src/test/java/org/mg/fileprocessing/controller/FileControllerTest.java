@@ -1,12 +1,15 @@
 package org.mg.fileprocessing.controller;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
+import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.security.auth.SecurityConfig;
+import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +20,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,7 +31,9 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.json.JsonCompareMode.STRICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -45,6 +49,8 @@ class FileControllerTest {
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private UserDetailsService userDetailsService;
 
+    private User testUser;
+
     @TestConfiguration
     static class TestConfig {
         @Bean
@@ -52,6 +58,16 @@ class FileControllerTest {
             final Instant fixedNow = Instant.parse("2026-05-20T12:00:00Z");
             return Clock.fixed(fixedNow, ZoneId.of("UTC"));
         }
+    }
+
+    @BeforeEach
+    void setUp() {
+        testUser = User.builder()
+                .id(1L)
+                .email("test@email.com")
+                .password("testpassword")
+                .roles(List.of(UserRole.USER))
+                .build();
     }
 
     @Test
@@ -73,12 +89,11 @@ class FileControllerTest {
     }
 
     @Test
-    @WithMockUser
     public void shouldReturnListOfFiles() throws Exception {
         // Given
         String expected = getResourceAsString(Path.of("test-get-all-files.json"));
 
-        given(fileService.findAll()).willReturn(List.of(
+        given(fileService.findAll(anyLong())).willReturn(List.of(
                 RetrieveFileDto.builder()
                         .uuid(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5")).filename("test2").size(100L).build(),
                 RetrieveFileDto.builder()
@@ -87,55 +102,56 @@ class FileControllerTest {
 
         // When
         // Then
-        mockMvc.perform(get("/files"))
+        mockMvc.perform(get("/files")
+                        .with(user(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
-    @WithMockUser
     public void shouldReturnEmptyListIfNoFiles() throws Exception {
         // Given
         String expected = "[]";
 
-        given(fileService.findAll()).willReturn(List.of());
+        given(fileService.findAll(anyLong())).willReturn(List.of());
 
         // When
         // Then
-        mockMvc.perform(get("/files"))
+        mockMvc.perform(get("/files")
+                        .with(user(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
-    @WithMockUser
     public void shouldReturnFileByUuid() throws Exception {
         // Given
         String expected = getResourceAsString(Path.of("test-get-file-by-uuid.json"));
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
 
-        given(fileService.findByUuid(uuid)).willReturn(RetrieveFileDto.builder()
+        given(fileService.findByUuid(eq(uuid), anyLong())).willReturn(RetrieveFileDto.builder()
                 .uuid(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5")).filename("test").size(200L).build());
 
         // When
         // Then
-        mockMvc.perform(get("/files/%s".formatted(uuid)))
+        mockMvc.perform(get("/files/%s".formatted(uuid))
+                        .with(user(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn404WhenFileNotFoundByUuid() throws Exception {
         // Given
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
         String reason = "File with UUID %s not found".formatted(uuid);
 
-        given(fileService.findByUuid(uuid)).willThrow(new ResourceNotFoundException(reason));
+        given(fileService.findByUuid(eq(uuid), anyLong())).willThrow(new ResourceNotFoundException(reason));
 
         // When
         // Then
-        mockMvc.perform(get("/files/%s".formatted(uuid)))
+        mockMvc.perform(get("/files/%s".formatted(uuid))
+                        .with(user(testUser)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.reason").value(reason))
@@ -144,7 +160,6 @@ class FileControllerTest {
     }
 
     @Test
-    @WithMockUser
     public void shouldCreateNewFile() throws Exception {
         // Given
         String filename = "test-file";
@@ -159,7 +174,7 @@ class FileControllerTest {
         String expected = getResourceAsString(Path.of("test-create-new-file.json"));
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
 
-        given(fileService.uploadFile(multipartFile)).willReturn(RetrieveFileDto.builder()
+        given(fileService.uploadFile(eq(multipartFile), any(User.class))).willReturn(RetrieveFileDto.builder()
                 .uuid(uuid).filename(filename).size((long) data.length).build());
 
         // When
@@ -167,13 +182,13 @@ class FileControllerTest {
         mockMvc.perform(
                     multipart("/files")
                             .file(multipartFile)
+                            .with(user(testUser))
                 ).andExpect(status().isCreated())
                 .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn400WhenUnsupportedContentTypeDuringFileUpload() throws Exception {
         // Given
         String reason = "Unsupported content type";
@@ -186,13 +201,14 @@ class FileControllerTest {
                 data
         );
 
-        given(fileService.uploadFile(multipartFile)).willThrow(new UnsupportedContentTypeException(reason));
+        given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new UnsupportedContentTypeException(reason));
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .with(user(testUser))
                 ).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.reason").value(reason))
@@ -201,7 +217,6 @@ class FileControllerTest {
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn500WhenServerEncountersIssueDuringFileUpload() throws Exception {
         // Given
         String reason = "Internal server error";
@@ -214,13 +229,14 @@ class FileControllerTest {
                 data
         );
 
-        given(fileService.uploadFile(multipartFile)).willThrow(new FileHandlingException(reason));
+        given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new FileHandlingException(reason));
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.reason").value(reason))
@@ -229,7 +245,6 @@ class FileControllerTest {
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn500WhenHttpClientException() throws Exception {
         // Given
         String reason = "Internal server error";
@@ -242,13 +257,14 @@ class FileControllerTest {
                 data
         );
 
-        given(fileService.uploadFile(multipartFile)).willThrow(new HttpClientException(reason));
+        given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new HttpClientException(reason));
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.reason").value(reason))
@@ -257,19 +273,17 @@ class FileControllerTest {
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn204WhenDeletingContent() throws Exception {
         // Given
         String fileUuid = "ab58f6de-9d3a-40d6-b332-11c356078fb5";
 
         // When
         // Then
-        mockMvc.perform(delete("/files/%s".formatted(fileUuid)))
+        mockMvc.perform(delete("/files/%s".formatted(fileUuid)).with(user(testUser)))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @WithMockUser
     public void shouldReturn500WhenUnknownException() throws Exception {
         // Given
         String reason = "Server encountered an unexpected exception";
@@ -282,13 +296,14 @@ class FileControllerTest {
                 data
         );
 
-        given(fileService.uploadFile(multipartFile)).willThrow(new RuntimeException());
+        given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new RuntimeException());
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.reason").value(reason))

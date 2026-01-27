@@ -6,11 +6,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.entity.FileVisibility;
 import org.mg.fileprocessing.entity.ScanStatus;
+import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
+import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.storage.FileStorage;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -34,13 +37,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
 
-// TODO tests here should take into consideration that user can get files that are his own or are public and can delete only his own files
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
     @Captor
@@ -52,9 +52,18 @@ class FileServiceTest {
     @Mock private KafkaTemplate<String, String> kafkaTemplate;
     private FileService fileService;
 
+    private User user;
+
     @BeforeEach
     void setUp() {
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
+
+        user = User.builder()
+                .id(1L)
+                .email("test@email.com")
+                .password("testpassword")
+                .roles(List.of(UserRole.USER))
+                .build();
 
         fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
     }
@@ -67,33 +76,34 @@ class FileServiceTest {
                 .originalFilename("test-file")
                 .uuid(uuid)
                 .size(100L)
+                .user(user)
                 .build();
 
-        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.of(file));
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.of(file));
 
         // When
-        RetrieveFileDto result = fileService.findByUuid(uuid);
+        RetrieveFileDto result = fileService.findByUuid(uuid, user.getId());
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result.uuid()).isEqualTo(uuid);
         assertThat(result.filename()).isEqualTo(file.getOriginalFilename());
         assertThat(result.size()).isEqualTo(file.getSize());
-        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuidAndUserId(uuid, user.getId());
     }
 
     @Test
     public void shouldThrowExceptionWhenFileNotFoundByUuid() {
         // Given
         UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
-        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.empty());
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.empty());
 
         // When
         // Then
-        assertThatThrownBy(() -> fileService.findByUuid(uuid))
+        assertThatThrownBy(() -> fileService.findByUuid(uuid, user.getId()))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("File with UUID %s not found".formatted(uuid));
-        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuidAndUserId(uuid, user.getId());
     }
 
     @Test
@@ -104,6 +114,7 @@ class FileServiceTest {
                 .originalFilename("test-file")
                 .uuid(uuid)
                 .size(100L)
+                .user(user)
                 .build();
         RetrieveFileDto retrieveFileDto = RetrieveFileDto.builder()
                 .uuid(uuid)
@@ -116,6 +127,7 @@ class FileServiceTest {
                 .originalFilename("test-file2")
                 .uuid(uuid2)
                 .size(200L)
+                .user(user)
                 .build();
         RetrieveFileDto retrieveFileDto2 = RetrieveFileDto.builder()
                 .uuid(uuid2)
@@ -123,31 +135,31 @@ class FileServiceTest {
                 .size(file2.getSize())
                 .build();
 
-        given(fileRepositoryMock.findAll()).willReturn(List.of(file, file2));
+        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC)).willReturn(List.of(file, file2));
 
         // When
-        List<RetrieveFileDto> result = fileService.findAll();
+        List<RetrieveFileDto> result = fileService.findAll(user.getId());
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result).isNotEmpty();
         assertThat(result).hasSize(2);
         assertThat(result).containsAll(List.of(retrieveFileDto, retrieveFileDto2));
-        verify(fileRepositoryMock).findAll();
+        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC);
     }
 
     @Test
     public void shouldReturnEmptyListWhenNoFilesFound() {
         // Given
-        given(fileRepositoryMock.findAll()).willReturn(Collections.emptyList());
+        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC)).willReturn(Collections.emptyList());
 
         // When
-        List<RetrieveFileDto> result = fileService.findAll();
+        List<RetrieveFileDto> result = fileService.findAll(user.getId());
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result).isEmpty();
-        verify(fileRepositoryMock).findAll();
+        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC);
     }
 
     @Test
@@ -156,13 +168,13 @@ class FileServiceTest {
         UUID uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
         String filename = "test";
 
-        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.of(File.builder().uuid(uuid).fileStorageName(filename).build()));
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.of(File.builder().uuid(uuid).fileStorageName(filename).build()));
 
         // When
-        fileService.deleteFile(uuid);
+        fileService.deleteFile(uuid, user.getId());
 
         // Then
-        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuidAndUserId(uuid, user.getId());
         verify(fileRepositoryMock).deleteFileByUuid(uuid);
         verify(fileStorage).deleteFileFromStorage(filename);
     }
@@ -173,13 +185,13 @@ class FileServiceTest {
         UUID uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
         String filename = "test";
 
-        given(fileRepositoryMock.findFileByUuid(uuid)).willReturn(Optional.empty());
+        given(fileRepositoryMock.findFileByUuidAndUserId(uuid, user.getId())).willReturn(Optional.empty());
 
         // When
-        fileService.deleteFile(uuid);
+        fileService.deleteFile(uuid, user.getId());
 
         // Then
-        verify(fileRepositoryMock).findFileByUuid(uuid);
+        verify(fileRepositoryMock).findFileByUuidAndUserId(uuid, user.getId());
         verify(fileRepositoryMock, never()).deleteFileByUuid(uuid);
         verify(fileStorage, never()).deleteFileFromStorage(filename);
     }
@@ -203,7 +215,7 @@ class FileServiceTest {
                 CompletableFuture.completedFuture(null));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();
@@ -235,7 +247,7 @@ class FileServiceTest {
                 CompletableFuture.completedFuture(null));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();
@@ -264,7 +276,7 @@ class FileServiceTest {
 
         // When
         // Then
-        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile, user))
                 .isInstanceOf(UnsupportedContentTypeException.class)
                 .hasMessage("Content type %s is not supported".formatted(contentType));
     }
@@ -287,7 +299,7 @@ class FileServiceTest {
 
         // When
         // Then
-        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile, user))
                 .isInstanceOf(FileHandlingException.class)
                 .hasCauseInstanceOf(IOException.class)
                 .hasRootCauseMessage(ioExceptionMessage)
@@ -321,7 +333,7 @@ class FileServiceTest {
         given(fileRepositoryMock.findFileByChecksum(dummyChecksum)).willReturn(Optional.of(file));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();
@@ -352,7 +364,7 @@ class FileServiceTest {
         given(fileStorage.saveFileToStorage(eq(multipartFile), anyString())).willReturn(Path.of("%s-%s".formatted(dummyChecksum, filename)));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();
@@ -383,7 +395,7 @@ class FileServiceTest {
 
         // When
         // Then
-        assertThatThrownBy(() -> fileService.uploadFile(multipartFile))
+        assertThatThrownBy(() -> fileService.uploadFile(multipartFile, user))
                 .isInstanceOf(FileHandlingException.class)
                 .hasMessage("Cannot upload file smaller than 1 byte");
         verify(fileRepositoryMock, never()).findFileByChecksum(anyString());
@@ -411,7 +423,7 @@ class FileServiceTest {
                 CompletableFuture.completedFuture(null));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();
@@ -451,7 +463,7 @@ class FileServiceTest {
                 CompletableFuture.completedFuture(null));
 
         // When
-        RetrieveFileDto result = fileService.uploadFile(multipartFile);
+        RetrieveFileDto result = fileService.uploadFile(multipartFile, user);
 
         // Then
         assertThat(result).isNotNull();

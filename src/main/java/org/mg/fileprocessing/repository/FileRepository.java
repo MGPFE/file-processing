@@ -1,16 +1,20 @@
 package org.mg.fileprocessing.repository;
 
 import org.mg.fileprocessing.entity.File;
+import org.mg.fileprocessing.entity.FileVisibility;
 import org.mg.fileprocessing.entity.ScanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface FileRepository extends JpaRepository<File, Long> {
     Optional<File> findFileByUuid(UUID uuid);
+    Optional<File> findFileByUuidAndUserId(UUID uuid, Long userId);
+    List<File> findFilesByUserIdOrFileVisibility(Long userId, FileVisibility fileVisibility);
     void deleteFileByUuid(UUID uuid);
     Optional<File> findFileByChecksum(String checksum);
     boolean existsByFileStorageName(String fileStorageName);
