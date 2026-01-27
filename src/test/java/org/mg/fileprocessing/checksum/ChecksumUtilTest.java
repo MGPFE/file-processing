@@ -32,7 +32,7 @@ class ChecksumUtilTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result).isEqualTo("05D84936CE1050C2B19D0618D342EA7403B96A46FBB73F86623AF1BD63384652");
+        assertThat(result).isEqualTo("A186000422FEAB857329C684E9FE91412B1A5DB084100B37A98CFC95B62AA867");
     }
 
     @Test

@@ -22,7 +22,7 @@ public class ChecksumUtil {
         byte[] buffer = new byte[8192];
         int bytesRead;
 
-        while ((bytesRead = is.read()) != -1) {
+        while ((bytesRead = is.read(buffer)) != -1) {
             messageDigest.update(buffer, 0, bytesRead);
         }
 
