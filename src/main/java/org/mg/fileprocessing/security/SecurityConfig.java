@@ -1,4 +1,4 @@
-package org.mg.fileprocessing.security.auth;
+package org.mg.fileprocessing.security;
 
 import lombok.RequiredArgsConstructor;
 import org.mg.fileprocessing.security.auth.jwt.JwtAuthenticationFilter;

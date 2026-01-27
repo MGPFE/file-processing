@@ -8,7 +8,7 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
-import org.mg.fileprocessing.security.auth.SecurityConfig;
+import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
 import org.mg.fileprocessing.service.FileService;

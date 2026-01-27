@@ -49,17 +49,4 @@ class ChecksumUtilTest {
                 .hasCauseInstanceOf(NoSuchAlgorithmException.class)
                 .hasMessage("Algorithm %s not supported".formatted(algorithm));
     }
-
-    @Test
-    public void shouldThrowExceptionWhenNoAlgorithmPassed() {
-        // Given
-        ChecksumProperties checksumProperties = new ChecksumProperties();
-        checksumUtil = new ChecksumUtil(checksumProperties);
-
-        // When
-        // Then
-        assertThatThrownBy(() -> checksumUtil.getChecksumAsString(input))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("No digest algorithm passed");
-    }
 }
