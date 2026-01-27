@@ -3,7 +3,7 @@ package org.mg.fileprocessing.security.auth.jwt;
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.TestUtils;
 import org.mg.fileprocessing.security.auth.AuthDto;
-import org.mg.fileprocessing.security.auth.SecurityConfig;
+import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.jwt.dto.JwtSignInResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -15,7 +15,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.shaded.org.checkerframework.checker.units.qual.A;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.file.Path;
