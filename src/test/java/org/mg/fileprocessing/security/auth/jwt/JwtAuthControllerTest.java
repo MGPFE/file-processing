@@ -2,6 +2,7 @@ package org.mg.fileprocessing.security.auth.jwt;
 
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.TestUtils;
+import org.mg.fileprocessing.interceptors.IdempotencyInterceptorProperties;
 import org.mg.fileprocessing.security.auth.AuthDto;
 import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.jwt.dto.JwtSignInResponseDto;
@@ -10,6 +11,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -46,6 +48,8 @@ class JwtAuthControllerTest {
     @MockitoBean private JwtAuthService jwtAuthService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private UserDetailsService userDetailsService;
+    @MockitoBean private RedisTemplate<String, String> redisTemplate;
+    @MockitoBean private IdempotencyInterceptorProperties idempotencyInterceptorProperties;
 
     @Test
     public void shouldReturn201OnUserRegister() throws Exception {

@@ -1,8 +1,6 @@
 services:
   postgres:
     image: postgres:15
-    profiles:
-      - prod
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -23,6 +21,10 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  redis:
+    image: redis:8.4.0-alpine
+    ports:
+      - "6379:6379"
   app:
     build: .
     environment:
@@ -40,3 +42,4 @@ services:
     depends_on:
       - postgres
       - kafka
+      - redis
