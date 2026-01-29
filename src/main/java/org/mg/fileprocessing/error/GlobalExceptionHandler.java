@@ -2,10 +2,7 @@ package org.mg.fileprocessing.error;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.mg.fileprocessing.exception.FileHandlingException;
-import org.mg.fileprocessing.exception.HttpClientException;
-import org.mg.fileprocessing.exception.ResourceNotFoundException;
-import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
+import org.mg.fileprocessing.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.Errors;
@@ -51,6 +48,11 @@ public class GlobalExceptionHandler {
         }
 
         return createResponse(BAD_REQUEST, message.substring(0, message.length() - 1));
+    }
+
+    @ExceptionHandler(IdempotencyViolationException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyViolationError(IdempotencyViolationException ex) {
+        return createResponse(BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
