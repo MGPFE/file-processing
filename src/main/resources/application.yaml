@@ -2,6 +2,10 @@ server:
   servlet:
     context-path: /api/v1
 spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
   application:
     name: fileprocessing
   servlet:
