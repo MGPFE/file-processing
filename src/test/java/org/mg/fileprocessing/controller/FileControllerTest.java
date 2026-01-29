@@ -21,12 +21,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
@@ -57,6 +57,8 @@ class FileControllerTest {
     @MockitoBean private RedisTemplate<String, String> redisTemplate;
     @MockitoBean private IdempotencyInterceptorProperties idempotencyInterceptorProperties;
 
+    @MockitoBean private ValueOperations<String, String> valueOps;
+
     private User testUser;
 
     @TestConfiguration
@@ -70,6 +72,8 @@ class FileControllerTest {
 
     @BeforeEach
     void setUp() {
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
         testUser = User.builder()
                 .id(1L)
                 .email("test@email.com")
@@ -184,12 +188,14 @@ class FileControllerTest {
 
         given(fileService.uploadFile(eq(multipartFile), any(User.class))).willReturn(RetrieveFileDto.builder()
                 .uuid(uuid).filename(filename).size((long) data.length).build());
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
 
         // When
         // Then
         mockMvc.perform(
                     multipart("/files")
                             .file(multipartFile)
+                            .header("Idempotency-Key", UUID.randomUUID())
                             .with(user(testUser))
                 ).andExpect(status().isCreated())
                 .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
@@ -210,12 +216,14 @@ class FileControllerTest {
         );
 
         given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new UnsupportedContentTypeException(reason));
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .header("Idempotency-Key", UUID.randomUUID())
                                 .with(user(testUser))
                 ).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
@@ -238,12 +246,14 @@ class FileControllerTest {
         );
 
         given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new FileHandlingException(reason));
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .header("Idempotency-Key", UUID.randomUUID())
                                 .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
@@ -266,12 +276,14 @@ class FileControllerTest {
         );
 
         given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new HttpClientException(reason));
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .header("Idempotency-Key", UUID.randomUUID())
                                 .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
@@ -305,12 +317,14 @@ class FileControllerTest {
         );
 
         given(fileService.uploadFile(eq(multipartFile), any(User.class))).willThrow(new RuntimeException());
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
 
         // When
         // Then
         mockMvc.perform(
                         multipart("/files")
                                 .file(multipartFile)
+                                .header("Idempotency-Key", UUID.randomUUID())
                                 .with(user(testUser))
                 ).andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
