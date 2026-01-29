@@ -60,6 +60,11 @@ public class GlobalExceptionHandler {
         return createResponse(CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceededError(RateLimitExceededException ex) {
+        return createResponse(TOO_MANY_REQUESTS, "Request was throttled, retry after %d seconds".formatted(ex.getRetryAfter().getSeconds()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception ex) {
         log.error("Encountered safety net exception: ", ex);
