@@ -10,6 +10,7 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
+import org.mg.fileprocessing.interceptors.IdempotencyInterceptorProperties;
 import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
@@ -19,6 +20,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -52,6 +54,8 @@ class FileControllerTest {
     @MockitoBean private FileService fileService;
     @MockitoBean private JwtUtil jwtUtil;
     @MockitoBean private UserDetailsService userDetailsService;
+    @MockitoBean private RedisTemplate<String, String> redisTemplate;
+    @MockitoBean private IdempotencyInterceptorProperties idempotencyInterceptorProperties;
 
     private User testUser;
 
