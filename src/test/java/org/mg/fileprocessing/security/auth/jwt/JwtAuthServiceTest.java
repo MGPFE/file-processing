@@ -3,6 +3,7 @@ package org.mg.fileprocessing.security.auth.jwt;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mg.fileprocessing.entity.User;
+import org.mg.fileprocessing.exception.UserAlreadyExistsException;
 import org.mg.fileprocessing.repository.UserRepository;
 import org.mg.fileprocessing.security.auth.AuthDto;
 import org.mg.fileprocessing.security.auth.UserRole;
@@ -77,7 +78,7 @@ class JwtAuthServiceTest {
         // When
         // Then
         assertThatThrownBy(() -> jwtAuthService.signUp(authDto))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessage("User with email %s already exists".formatted(authDto.email()));
         verify(userRepository).existsByEmail(email);
         verify(passwordEncoder, never()).encode(any(String.class));

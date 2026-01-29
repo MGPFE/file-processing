@@ -2,6 +2,7 @@ package org.mg.fileprocessing.security.auth.jwt;
 
 import lombok.RequiredArgsConstructor;
 import org.mg.fileprocessing.entity.User;
+import org.mg.fileprocessing.exception.UserAlreadyExistsException;
 import org.mg.fileprocessing.repository.UserRepository;
 import org.mg.fileprocessing.security.auth.AuthDto;
 import org.mg.fileprocessing.security.auth.AuthService;
@@ -29,7 +30,7 @@ public class JwtAuthService implements AuthService<JwtSignInResponseDto> {
     @Override
     public void signUp(AuthDto authDto) {
         if (userRepository.existsByEmail(authDto.email())) {
-            throw new IllegalArgumentException("User with email %s already exists".formatted(authDto.email()));
+            throw new UserAlreadyExistsException("User with email %s already exists".formatted(authDto.email()));
         }
 
         User newUser = User.builder()
