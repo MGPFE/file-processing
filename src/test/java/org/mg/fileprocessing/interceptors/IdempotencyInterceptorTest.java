@@ -102,16 +102,41 @@ class IdempotencyInterceptorTest {
         MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
 
         given(redisTemplate.opsForValue()).willReturn(valueOps);
-        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(true);
+        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(Boolean.TRUE);
 
         // When
         boolean result = idempotencyInterceptor.preHandle(mockHttpServletRequest, mockHttpServletResponse, null);
 
         // Then
         assertTrue(result);
+        assertThat(mockHttpServletResponse.getStatus()).isEqualTo(200);
         verify(redisTemplate).opsForValue();
-        verify(valueOps).setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration());
+        verify(valueOps).setIfAbsent(eq(idempotencyKey), eq("Processing"), eq(idempotencyInterceptorProperties.getKeyExpiration()));
         verify(valueOps, never()).get(idempotencyKey);
+    }
+
+    @Test
+    public void shouldReturnTrueWhenSetIfAbsentReturnsNull() {
+        // Given
+        final String idempotencyKeyHeader = "Idempotency-Key";
+        final String idempotencyKey = "DUMMY_KEY";
+
+        MockHttpServletRequest mockHttpServletRequest = new MockHttpServletRequest();
+        mockHttpServletRequest.setMethod("POST");
+        mockHttpServletRequest.addHeader(idempotencyKeyHeader, idempotencyKey);
+        MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(null);
+
+        // When
+        boolean result = idempotencyInterceptor.preHandle(mockHttpServletRequest, mockHttpServletResponse, null);
+
+        // Then
+        assertTrue(result);
+        assertThat(mockHttpServletResponse.getStatus()).isEqualTo(200);
+        verify(redisTemplate).opsForValue();
+        verify(valueOps).setIfAbsent(eq(idempotencyKey), eq("Processing"), eq(idempotencyInterceptorProperties.getKeyExpiration()));
     }
 
     @Test
@@ -126,7 +151,7 @@ class IdempotencyInterceptorTest {
         MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
 
         given(redisTemplate.opsForValue()).willReturn(valueOps);
-        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(false);
+        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(Boolean.FALSE);
         given(valueOps.get(idempotencyKey)).willReturn("Processing");
 
         // When
@@ -136,7 +161,7 @@ class IdempotencyInterceptorTest {
         assertFalse(result);
         assertThat(mockHttpServletResponse.getStatus()).isEqualTo(425);
         verify(redisTemplate, times(2)).opsForValue();
-        verify(valueOps).setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration());
+        verify(valueOps).setIfAbsent(eq(idempotencyKey), eq("Processing"), eq(idempotencyInterceptorProperties.getKeyExpiration()));
         verify(valueOps).get(idempotencyKey);
     }
 
@@ -152,7 +177,7 @@ class IdempotencyInterceptorTest {
         MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
 
         given(redisTemplate.opsForValue()).willReturn(valueOps);
-        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(false);
+        given(valueOps.setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration())).willReturn(Boolean.FALSE);
         given(valueOps.get(idempotencyKey)).willReturn("Completed");
 
         // When
@@ -162,7 +187,65 @@ class IdempotencyInterceptorTest {
         assertFalse(result);
         assertThat(mockHttpServletResponse.getStatus()).isEqualTo(209);
         verify(redisTemplate, times(2)).opsForValue();
-        verify(valueOps).setIfAbsent(idempotencyKey, "Processing", idempotencyInterceptorProperties.getKeyExpiration());
+        verify(valueOps).setIfAbsent(eq(idempotencyKey), eq("Processing"), eq(idempotencyInterceptorProperties.getKeyExpiration()));
         verify(valueOps).get(idempotencyKey);
+    }
+
+    @Test
+    public void shouldDeleteKeyAfterCompletionIfExceptionOccurred() {
+        // Given
+        final String idempotencyKeyHeader = "Idempotency-Key";
+        final String idempotencyKey = "DUMMY_KEY";
+
+        MockHttpServletRequest mockHttpServletRequest = new MockHttpServletRequest();
+        mockHttpServletRequest.setMethod("POST");
+        mockHttpServletRequest.addHeader(idempotencyKeyHeader, idempotencyKey);
+        MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+
+        // When
+        idempotencyInterceptor.afterCompletion(mockHttpServletRequest, mockHttpServletResponse, null, new RuntimeException("DUMMY"));
+
+        // Then
+        verify(redisTemplate).delete(idempotencyKey);
+        verify(redisTemplate, never()).opsForValue();
+        verify(valueOps, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    public void shouldSetKeyStatusToCompletedAfterCompletion() {
+        // Given
+        final String idempotencyKeyHeader = "Idempotency-Key";
+        final String idempotencyKey = "DUMMY_KEY";
+
+        MockHttpServletRequest mockHttpServletRequest = new MockHttpServletRequest();
+        mockHttpServletRequest.setMethod("POST");
+        mockHttpServletRequest.addHeader(idempotencyKeyHeader, idempotencyKey);
+        MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
+        // When
+        idempotencyInterceptor.afterCompletion(mockHttpServletRequest, mockHttpServletResponse, null, null);
+
+        // Then
+        verify(redisTemplate).opsForValue();
+        verify(valueOps).set(eq(idempotencyKey), eq("Completed"), eq(idempotencyInterceptorProperties.getKeyExpiration()));
+        verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    public void shouldSkipAfterCompletionIfKeyIsNull() {
+        // Given
+        MockHttpServletRequest mockHttpServletRequest = new MockHttpServletRequest();
+        mockHttpServletRequest.setMethod("POST");
+        MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+
+        // When
+        idempotencyInterceptor.afterCompletion(mockHttpServletRequest, mockHttpServletResponse, null, null);
+
+        // Then
+        verify(redisTemplate, never()).delete(anyString());
+        verify(redisTemplate, never()).opsForValue();
+        verify(valueOps, never()).set(anyString(), anyString(), any(Duration.class));
     }
 }

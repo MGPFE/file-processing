@@ -30,10 +30,10 @@ public class IdempotencyInterceptor implements HandlerInterceptor {
             throw new IdempotencyViolationException("%s header is mandatory".formatted(IDEMPOTENCY_KEY_HEADER));
         }
 
-        boolean isFirstRequest = redisTemplate.opsForValue()
+        Boolean isFirstRequest = redisTemplate.opsForValue()
                 .setIfAbsent(key, PROCESSING_STATUS, idempotencyInterceptorProperties.getKeyExpiration());
 
-        if (!isFirstRequest) {
+        if (Boolean.FALSE.equals(isFirstRequest)) {
             String status = redisTemplate.opsForValue().get(key);
             if (PROCESSING_STATUS.equals(status)) {
                 response.setStatus(425);
@@ -46,12 +46,14 @@ public class IdempotencyInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) {
         String key = request.getHeader(IDEMPOTENCY_KEY_HEADER);
         if (key != null) {
-            redisTemplate.delete(key);
-        } else {
-            redisTemplate.opsForValue().set(key, COMPLETED_STATUS, idempotencyInterceptorProperties.getKeyExpiration());
+            if (ex != null) {
+                redisTemplate.delete(key);
+            } else {
+                redisTemplate.opsForValue().set(key, COMPLETED_STATUS, idempotencyInterceptorProperties.getKeyExpiration());
+            }
         }
     }
 }
