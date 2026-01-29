@@ -55,6 +55,11 @@ public class GlobalExceptionHandler {
         return createResponse(BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExistsError(UserAlreadyExistsException ex) {
+        return createResponse(CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception ex) {
         log.error("Encountered safety net exception: ", ex);
