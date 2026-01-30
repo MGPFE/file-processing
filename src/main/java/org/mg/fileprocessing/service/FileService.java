@@ -57,6 +57,7 @@ public class FileService {
         validateFileLength(multipartFile);
         String checksum = getChecksumForFile(multipartFile);
 
+        // TODO we should probably add the user that posted it as co-owner
         return fileRepository.findFileByChecksum(checksum)
                 .map(RetrieveFileDto::fromFile)
                 .orElseGet(() -> saveNewFile(multipartFile, checksum, user));
