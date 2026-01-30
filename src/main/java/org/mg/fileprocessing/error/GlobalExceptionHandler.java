@@ -62,7 +62,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ErrorResponse> handleRateLimitExceededError(RateLimitExceededException ex) {
-        return createResponse(TOO_MANY_REQUESTS, "Request was throttled, retry after %d seconds".formatted(ex.getRetryAfter().getSeconds()));
+        ResponseEntity<ErrorResponse> response = createResponse(TOO_MANY_REQUESTS, "Request was throttled, retry after %d seconds".formatted(ex.getRetryAfter().getSeconds()));
+        response.getHeaders().add("Retry-After", String.valueOf(ex.getRetryAfter().getSeconds()));
+        return response;
     }
 
     @ExceptionHandler(Exception.class)

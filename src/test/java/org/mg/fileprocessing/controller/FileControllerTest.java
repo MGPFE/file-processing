@@ -1,5 +1,6 @@
 package org.mg.fileprocessing.controller;
 
+import io.github.bucket4j.distributed.proxy.ProxyManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
@@ -11,6 +12,7 @@ import org.mg.fileprocessing.exception.HttpClientException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.interceptors.IdempotencyInterceptorProperties;
+import org.mg.fileprocessing.interceptors.RateLimitInterceptorProperties;
 import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
@@ -56,8 +58,9 @@ class FileControllerTest {
     @MockitoBean private UserDetailsService userDetailsService;
     @MockitoBean private RedisTemplate<String, String> redisTemplate;
     @MockitoBean private IdempotencyInterceptorProperties idempotencyInterceptorProperties;
-
     @MockitoBean private ValueOperations<String, String> valueOps;
+    @MockitoBean private ProxyManager<byte[]> proxyManager;
+    @MockitoBean private RateLimitInterceptorProperties rateLimitInterceptorProperties;
 
     private User testUser;
 
