@@ -8,6 +8,10 @@ import org.mg.fileprocessing.dto.UpdateFileVisibilityDto;
 import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.service.FileService;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,8 +32,9 @@ public class FileController {
     private static final String ATTACHMENT_HEADER_FORMAT = "attachment; filename=\"%s\"";
 
     @GetMapping
-    public ResponseEntity<List<RetrieveFileDto>> findAll(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(fileService.findAll(user.getId()));
+    public ResponseEntity<Page<RetrieveFileDto>> findAll(@AuthenticationPrincipal User user,
+                                                         @PageableDefault(sort = "originalFilename", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(fileService.findAll(user.getId(), pageable));
     }
 
     @GetMapping("/{uuid}")

@@ -27,6 +27,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
@@ -116,34 +120,37 @@ class FileControllerTest {
         // Given
         String expected = getResourceAsString(Path.of("test-get-all-files.json"));
 
-        given(fileService.findAll(anyLong())).willReturn(List.of(
+        given(fileService.findAll(anyLong(), any(Pageable.class))).willReturn(new PageImpl<>(List.of(
                 RetrieveFileDto.builder()
                         .uuid(UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5")).filename("test2").size(100L).build(),
                 RetrieveFileDto.builder()
                         .uuid(UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f")).filename("test2").size(100L).build()
-        ));
+        )));
 
         // When
         // Then
         mockMvc.perform(get("/files")
                         .with(user(testUser)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isNotEmpty())
+                .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(content().json(expected, STRICT));
     }
 
     @Test
     public void shouldReturnEmptyListIfNoFiles() throws Exception {
         // Given
-        String expected = "[]";
-
-        given(fileService.findAll(anyLong())).willReturn(List.of());
+        given(fileService.findAll(anyLong(), any(Pageable.class))).willReturn(Page.empty());
 
         // When
         // Then
         mockMvc.perform(get("/files")
                         .with(user(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(content().json(expected, STRICT));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
