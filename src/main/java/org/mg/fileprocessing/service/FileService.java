@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
+import org.mg.fileprocessing.dto.FileDownloadDto;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
 import org.mg.fileprocessing.entity.FileVisibility;
@@ -14,6 +15,8 @@ import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.mg.fileprocessing.storage.FileStorage;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -22,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +65,24 @@ public class FileService {
         return fileRepository.findFileByChecksum(checksum)
                 .map(RetrieveFileDto::fromFile)
                 .orElseGet(() -> saveNewFile(multipartFile, checksum, user));
+    }
+
+    public FileDownloadDto downloadFile(UUID uuid, Long userId) {
+        File file = fileRepository.findFileByUuidAndUserIdOrFileVisibility(uuid, userId, FileVisibility.PUBLIC)
+                .orElseThrow(() -> new ResourceNotFoundException("File with id %s not found".formatted(uuid)));
+
+        try {
+            Path path = fileStorage.getFilePathFromStorage(file.getFileStorageName());
+            Resource resource = new UrlResource(path.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                return new FileDownloadDto(resource, file.getOriginalFilename());
+            } else {
+                throw new FileHandlingException("File %s doesn't exists or is not readable".formatted(uuid));
+            }
+        } catch (MalformedURLException e) {
+            throw new FileHandlingException("Failed while retrieving file %s".formatted(uuid), e);
+        }
     }
 
     private RetrieveFileDto saveNewFile(MultipartFile multipartFile, String checksum, User user) {
