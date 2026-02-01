@@ -24,7 +24,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.Resource;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.*;
 import org.springframework.http.MediaType;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -122,6 +122,8 @@ class FileServiceTest {
     public void shouldFindAllFiles() {
         // Given
         UUID uuid = UUID.fromString("36a3a593-bc83-49b7-b7cc-e916a0e0ba9f");
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("originalFilename").ascending());
+
         File file = File.builder()
                 .originalFilename("test-file")
                 .uuid(uuid)
@@ -147,31 +149,33 @@ class FileServiceTest {
                 .size(file2.getSize())
                 .build();
 
-        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC)).willReturn(List.of(file, file2));
+        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC, pageable)).willReturn(new PageImpl<>(List.of(file, file2)));
 
         // When
-        List<RetrieveFileDto> result = fileService.findAll(user.getId());
+        Page<RetrieveFileDto> result = fileService.findAll(user.getId(), pageable);
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result).isNotEmpty();
         assertThat(result).hasSize(2);
         assertThat(result).containsAll(List.of(retrieveFileDto, retrieveFileDto2));
-        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC);
+        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC, pageable);
     }
 
     @Test
     public void shouldReturnEmptyListWhenNoFilesFound() {
         // Given
-        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC)).willReturn(Collections.emptyList());
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("originalFilename").ascending());
+
+        given(fileRepositoryMock.findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC, pageable)).willReturn(Page.empty());
 
         // When
-        List<RetrieveFileDto> result = fileService.findAll(user.getId());
+        Page<RetrieveFileDto> result = fileService.findAll(user.getId(), pageable);
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result).isEmpty();
-        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC);
+        verify(fileRepositoryMock).findFilesByUserIdOrFileVisibility(user.getId(), FileVisibility.PUBLIC, pageable);
     }
 
     @Test

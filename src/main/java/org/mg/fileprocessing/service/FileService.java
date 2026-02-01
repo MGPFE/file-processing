@@ -20,6 +20,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,7 +28,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -41,10 +41,9 @@ public class FileService {
     private final ResourceLoader resourceLoader;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public List<RetrieveFileDto> findAll(Long userId) {
-        return fileRepository.findFilesByUserIdOrFileVisibility(userId, FileVisibility.PUBLIC).stream()
-                .map(RetrieveFileDto::fromFile)
-                .toList();
+    public Page<RetrieveFileDto> findAll(Long userId, Pageable pageable) {
+        return fileRepository.findFilesByUserIdOrFileVisibility(userId, FileVisibility.PUBLIC, pageable)
+                .map(RetrieveFileDto::fromFile);
     }
 
     public RetrieveFileDto findByUuid(UUID uuid, Long userId) {
@@ -63,6 +62,9 @@ public class FileService {
         String checksum = getChecksumForFile(multipartFile);
 
         // TODO we should probably add the user that posted it as co-owner
+        // We have to consider that multiple users could upload the same file but with different filename
+        // So we should have something like FileOwnershipKey with User mapped to filename
+        // And when downloading a file it should return correct original filename back to user
         return fileRepository.findFileByChecksum(checksum)
                 .map(RetrieveFileDto::fromFile)
                 .orElseGet(() -> saveNewFile(multipartFile, checksum, user));

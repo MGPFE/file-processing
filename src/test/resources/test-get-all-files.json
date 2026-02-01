@@ -1,18 +1,34 @@
-[
-  {
-    "uuid": "ab58f6de-9d3a-40d6-b332-11c356078fb5",
-    "filename": "test2",
-    "size": 100,
-    "checksum": null,
-    "contentType": null,
-    "fileVisibility": null
+{
+  "content": [
+    {
+      "uuid": "ab58f6de-9d3a-40d6-b332-11c356078fb5",
+      "filename": "test2",
+      "size": 100,
+      "checksum": null,
+      "contentType": null,
+      "fileVisibility": null
+    },
+    {
+      "uuid": "36a3a593-bc83-49b7-b7cc-e916a0e0ba9f",
+      "filename": "test2",
+      "size": 100,
+      "checksum": null,
+      "contentType": null,
+      "fileVisibility": null
+    }
+  ],
+  "empty": false,
+  "first": true,
+  "last": true,
+  "number": 0,
+  "numberOfElements": 2,
+  "pageable": "INSTANCE",
+  "size": 2,
+  "sort": {
+    "empty": true,
+    "sorted": false,
+    "unsorted": true
   },
-  {
-    "uuid": "36a3a593-bc83-49b7-b7cc-e916a0e0ba9f",
-    "filename": "test2",
-    "size": 100,
-    "checksum": null,
-    "contentType": null,
-    "fileVisibility": null
-  }
-]
+  "totalElements": 2,
+  "totalPages": 1
+}
