@@ -3,7 +3,9 @@ package org.mg.fileprocessing.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mg.fileprocessing.checksum.ChecksumUtil;
+import org.mg.fileprocessing.dto.FileDownloadDto;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.entity.File;
 import org.mg.fileprocessing.entity.FileVisibility;
@@ -13,22 +15,29 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
+import org.mg.fileprocessing.resource.ResourceLoader;
 import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.storage.FileStorage;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -50,6 +60,7 @@ class FileServiceTest {
     @Mock private FileRepository fileRepositoryMock;
     @Mock private ChecksumUtil checksumUtil;
     @Mock private FileStorage fileStorage;
+    @Mock private ResourceLoader resourceLoader;
     @Mock private KafkaTemplate<String, String> kafkaTemplate;
     private FileService fileService;
 
@@ -66,7 +77,7 @@ class FileServiceTest {
                 .roles(List.of(UserRole.USER))
                 .build();
 
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, resourceLoader, kafkaTemplate);
     }
 
     @Test
@@ -231,7 +242,7 @@ class FileServiceTest {
     public void shouldSaveFileWhenAllowedContentTypesSpecified() throws IOException {
         // Given
         FileUploadProperties fileUploadProperties = new FileUploadProperties(List.of("image/jpg"));
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, resourceLoader, kafkaTemplate);
         String filename = "filename.jpg";
         String checksum = "05D84936CE1050C2B19D0618D342EA7403B96A46FBB73F86623AF1BD63384652";
         String fileStorageName = "%s-%s".formatted(checksum, filename);
@@ -263,7 +274,7 @@ class FileServiceTest {
     public void shouldThrowExceptionWhenContentTypeNotAllowed() {
         // Given
         FileUploadProperties fileUploadProperties = new FileUploadProperties(List.of("image/jpg"));
-        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, kafkaTemplate);
+        fileService = new FileService(fileStorage, checksumUtil, fileUploadProperties, fileRepositoryMock, resourceLoader, kafkaTemplate);
 
         String filename = "filename.jpg";
         String contentType = "image/png";
@@ -598,5 +609,119 @@ class FileServiceTest {
         assertThatThrownBy(() -> fileService.updateFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("File with id %s not found".formatted(uuid));
+    }
+
+    @Test
+    public void shouldReturnValidFileDownloadDto() {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String storageName = "test_storage_name.jpg";
+        String originalFilename = "original_name.jpg";
+        Path path = Path.of("");
+
+        File file = File.builder()
+                .id(1L)
+                .uuid(uuid)
+                .fileStorageName(storageName)
+                .originalFilename(originalFilename)
+                .fileVisibility(FileVisibility.PRIVATE)
+                .user(user)
+                .build();
+
+        given(fileRepositoryMock.findFileByUuidAndUserIdOrFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC)).willReturn(Optional.of(file));
+        given(fileStorage.getFilePathFromStorage(file.getFileStorageName())).willReturn(path);
+
+        Resource resource = Mockito.mock(Resource.class);
+        given(resource.exists()).willReturn(true);
+        given(resource.isReadable()).willReturn(true);
+        given(resourceLoader.loadPathAsResource(path)).willReturn(resource);
+
+        // When
+        FileDownloadDto result = fileService.downloadFile(uuid, user.getId());
+
+        // Then
+        assertNotNull(result);
+        verify(fileStorage).getFilePathFromStorage(file.getFileStorageName());
+        verify(fileRepositoryMock).findFileByUuidAndUserIdOrFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC);
+        verify(resourceLoader).loadPathAsResource(path);
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenFileNotFound() {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+
+        given(fileRepositoryMock.findFileByUuidAndUserIdOrFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC)).willReturn(Optional.empty());
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.downloadFile(uuid, user.getId()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("File with id %s not found".formatted(uuid));
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenFileDoesNotExistInStorage(@TempDir Path tempDir) {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String storageName = "test_storage_name.jpg";
+        String originalFilename = "original_name.jpg";
+        Path path = Path.of("");
+
+        File file = File.builder()
+                .id(1L)
+                .uuid(uuid)
+                .fileStorageName(storageName)
+                .originalFilename(originalFilename)
+                .fileVisibility(FileVisibility.PRIVATE)
+                .user(user)
+                .build();
+
+        given(fileRepositoryMock.findFileByUuidAndUserIdOrFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC)).willReturn(Optional.of(file));
+        given(fileStorage.getFilePathFromStorage(file.getFileStorageName())).willReturn(path);
+
+        Resource resource = Mockito.mock(Resource.class);
+        given(resource.exists()).willReturn(false);
+
+        given(resourceLoader.loadPathAsResource(path)).willReturn(resource);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.downloadFile(uuid, user.getId()))
+                .isInstanceOf(FileHandlingException.class)
+                .hasMessage("File %s doesn't exist or is not readable".formatted(uuid));
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenFileExistsInStorageButIsNotReadable() {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String storageName = "test_storage_name.jpg";
+        String originalFilename = "original_name.jpg";
+        Path path = Path.of("");
+
+        File file = File.builder()
+                .id(1L)
+                .uuid(uuid)
+                .fileStorageName(storageName)
+                .originalFilename(originalFilename)
+                .fileVisibility(FileVisibility.PRIVATE)
+                .user(user)
+                .build();
+
+        given(fileRepositoryMock.findFileByUuidAndUserIdOrFileVisibility(uuid, user.getId(), FileVisibility.PUBLIC)).willReturn(Optional.of(file));
+        given(fileStorage.getFilePathFromStorage(file.getFileStorageName())).willReturn(path);
+
+        Resource resource = Mockito.mock(Resource.class);
+        given(resource.exists()).willReturn(true);
+        given(resource.isReadable()).willReturn(false);
+
+        given(resourceLoader.loadPathAsResource(path)).willReturn(resource);
+
+        // When
+        // Then
+        assertThatThrownBy(() -> fileService.downloadFile(uuid, user.getId()))
+                .isInstanceOf(FileHandlingException.class)
+                .hasMessage("File %s doesn't exist or is not readable".formatted(uuid));
     }
 }

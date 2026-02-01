@@ -1,12 +1,14 @@
 package org.mg.fileprocessing.controller;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.mg.fileprocessing.dto.FileDownloadDto;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.dto.UpdateFileVisibilityDto;
 import org.mg.fileprocessing.entity.User;
 import org.mg.fileprocessing.service.FileService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,8 @@ import java.util.UUID;
 public class FileController {
     private final FileService fileService;
 
+    private static final String ATTACHMENT_HEADER_FORMAT = "attachment; filename=\"%s\"";
+
     @GetMapping
     public ResponseEntity<List<RetrieveFileDto>> findAll(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(fileService.findAll(user.getId()));
@@ -32,6 +36,16 @@ public class FileController {
     @GetMapping("/{uuid}")
     public ResponseEntity<RetrieveFileDto> findById(@PathVariable("uuid") UUID uuid, @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(fileService.findByUuid(uuid, user.getId()));
+    }
+
+    @GetMapping("/download/{uuid}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable("uuid") UUID uuid, @AuthenticationPrincipal User user) {
+        FileDownloadDto fileDownloadDto = fileService.downloadFile(uuid, user.getId());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ATTACHMENT_HEADER_FORMAT.formatted(fileDownloadDto.filename()))
+                .body(fileDownloadDto.resource());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
