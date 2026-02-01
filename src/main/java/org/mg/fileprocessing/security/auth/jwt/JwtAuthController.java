@@ -2,8 +2,8 @@ package org.mg.fileprocessing.security.auth.jwt;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.mg.fileprocessing.security.auth.AuthDto;
 import org.mg.fileprocessing.security.auth.AuthController;
+import org.mg.fileprocessing.security.auth.AuthDto;
 import org.mg.fileprocessing.security.auth.AuthService;
 import org.mg.fileprocessing.security.auth.jwt.dto.JwtSignInResponseDto;
 import org.springframework.context.annotation.Primary;
