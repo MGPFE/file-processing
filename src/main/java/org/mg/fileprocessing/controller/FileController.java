@@ -38,7 +38,7 @@ public class FileController {
         return ResponseEntity.ok(fileService.findByUuid(uuid, user.getId()));
     }
 
-    @GetMapping("/{uuid}")
+    @GetMapping("/download/{uuid}")
     public ResponseEntity<Resource> downloadFile(@PathVariable("uuid") UUID uuid, @AuthenticationPrincipal User user) {
         FileDownloadDto fileDownloadDto = fileService.downloadFile(uuid, user.getId());
 

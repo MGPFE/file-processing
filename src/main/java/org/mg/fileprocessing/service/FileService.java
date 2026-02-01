@@ -14,6 +14,7 @@ import org.mg.fileprocessing.exception.FileHandlingException;
 import org.mg.fileprocessing.exception.ResourceNotFoundException;
 import org.mg.fileprocessing.exception.UnsupportedContentTypeException;
 import org.mg.fileprocessing.repository.FileRepository;
+import org.mg.fileprocessing.resource.ResourceLoader;
 import org.mg.fileprocessing.storage.FileStorage;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -25,7 +26,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +38,7 @@ public class FileService {
     private final ChecksumUtil checksumUtil;
     private final FileUploadProperties fileUploadProperties;
     private final FileRepository fileRepository;
+    private final ResourceLoader resourceLoader;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     public List<RetrieveFileDto> findAll(Long userId) {
@@ -71,17 +72,13 @@ public class FileService {
         File file = fileRepository.findFileByUuidAndUserIdOrFileVisibility(uuid, userId, FileVisibility.PUBLIC)
                 .orElseThrow(() -> new ResourceNotFoundException("File with id %s not found".formatted(uuid)));
 
-        try {
-            Path path = fileStorage.getFilePathFromStorage(file.getFileStorageName());
-            Resource resource = new UrlResource(path.toUri());
+        Path path = fileStorage.getFilePathFromStorage(file.getFileStorageName());
+        Resource resource = resourceLoader.loadPathAsResource(path);
 
-            if (resource.exists() && resource.isReadable()) {
-                return new FileDownloadDto(resource, file.getOriginalFilename());
-            } else {
-                throw new FileHandlingException("File %s doesn't exists or is not readable".formatted(uuid));
-            }
-        } catch (MalformedURLException e) {
-            throw new FileHandlingException("Failed while retrieving file %s".formatted(uuid), e);
+        if (resource.exists() && resource.isReadable()) {
+            return new FileDownloadDto(resource, file.getOriginalFilename());
+        } else {
+            throw new FileHandlingException("File %s doesn't exist or is not readable".formatted(uuid));
         }
     }
 

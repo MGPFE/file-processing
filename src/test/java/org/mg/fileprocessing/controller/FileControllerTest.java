@@ -1,8 +1,10 @@
 package org.mg.fileprocessing.controller;
 
 import io.github.bucket4j.distributed.proxy.ProxyManager;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mg.fileprocessing.dto.FileDownloadDto;
 import org.mg.fileprocessing.dto.RetrieveFileDto;
 import org.mg.fileprocessing.dto.UpdateFileVisibilityDto;
 import org.mg.fileprocessing.entity.FileVisibility;
@@ -17,11 +19,14 @@ import org.mg.fileprocessing.security.SecurityConfig;
 import org.mg.fileprocessing.security.auth.UserRole;
 import org.mg.fileprocessing.security.auth.jwt.JwtUtil;
 import org.mg.fileprocessing.service.FileService;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.Resource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
@@ -31,6 +36,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -41,6 +47,8 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.json.JsonCompareMode.STRICT;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -203,6 +211,46 @@ class FileControllerTest {
                 ).andExpect(status().isCreated())
                 .andExpect(header().stringValues("Location", "/%s".formatted(uuid)))
                 .andExpect(content().json(expected, STRICT));
+    }
+
+    @Test
+    public void shouldDownloadFile() throws Exception {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+        String filename = "dummy_file.jpeg";
+        String expectedContentDispositionHeader = "attachment; filename=\"%s\"".formatted(filename);
+        Resource resource = Mockito.mock(Resource.class);
+        byte[] expectedContent = "TEST_CONTENT".getBytes(StandardCharsets.UTF_8);
+
+        given(resource.getInputStream()).willReturn(new ByteArrayInputStream(expectedContent));
+        given(fileService.downloadFile(eq(uuid), anyLong())).willReturn(FileDownloadDto.builder()
+                .resource(resource).filename(filename).build());
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
+
+        // When
+        // Then
+        mockMvc.perform(
+                        get("/files/download/%s".formatted(uuid))
+                                .with(user(testUser))
+                ).andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andExpect(header().stringValues(HttpHeaders.CONTENT_DISPOSITION, expectedContentDispositionHeader))
+                .andExpect(content().bytes(expectedContent));
+        verify(fileService).downloadFile(eq(uuid), anyLong());
+    }
+
+    @Test
+    public void shouldNotAllowDownloadWhenNotAuthenticated() throws Exception {
+        // Given
+        UUID uuid = UUID.fromString("ab58f6de-9d3a-40d6-b332-11c356078fb5");
+
+        given(valueOps.setIfAbsent(anyString(), anyString(), any())).willReturn(Boolean.TRUE);
+
+        // When
+        // Then
+        mockMvc.perform(get("/files/download/%s".formatted(uuid))
+                ).andExpect(status().isForbidden());
+        verify(fileService, never()).downloadFile(any(UUID.class), anyLong());
     }
 
     @Test
