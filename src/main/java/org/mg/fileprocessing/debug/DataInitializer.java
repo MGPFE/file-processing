@@ -4,12 +4,14 @@ import org.mg.fileprocessing.entity.File;
 import org.mg.fileprocessing.repository.FileRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import java.util.List;
 import java.util.UUID;
 
 @Profile("dev")
+@Configuration
 public class DataInitializer {
     @Bean
     public CommandLineRunner commandLineRunner(FileRepository fileRepository) {
